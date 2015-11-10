@@ -125,3 +125,19 @@ end-struct ast%
 		1 throw
 	endif
 	rot rot 2drop ;
+
+: ast-conn-and ( n a-addr -- n )
+	swap over ast-left @ ast-exec
+	dup 0<> if
+		nip
+	else
+		swap ast-right @ ast-exec
+	endif ;
+
+: ast-conn-or ( n a-addr -- n )
+	swap over ast-left @ ast-exec
+	dup 0= if
+		nip
+	else
+		swap ast-right @ ast-exec
+	endif ;

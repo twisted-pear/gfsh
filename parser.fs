@@ -74,6 +74,18 @@ get-current parse-special set-current
 	['] ast-conn-pipe parse-connector
 	-1 ps pstate-background ! ;
 
+: && ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
+	dup 0= if 
+		ps pstate-empty @ throw
+	endif
+	['] ast-conn-and parse-connector ;
+
+: || ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
+	dup 0= if 
+		ps pstate-empty @ throw
+	endif
+	['] ast-conn-or parse-connector ;
+
 set-current
 
 : clear-parser-state ( -- )
