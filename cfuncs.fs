@@ -1,5 +1,3 @@
-require libcc.fs
-
 \c #include <errno.h>
 \c #include <fcntl.h>
 \c #include <signal.h>
@@ -153,3 +151,5 @@ c-function libc-fdopen fdopen n a -- a
 	libc-fdopen
 	r> free drop
 	dup 0= throw ;
+
+c-function libc-isatty isatty n -- n

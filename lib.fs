@@ -69,6 +69,13 @@ create line-buffer max-line chars allot
 			1+
 	repeat drop ;
 
+: term? ( -- f )
+	stdin ['] >c-fd catch if
+		drop 0
+	else
+		libc-isatty
+	endif ;
+
 : init ( xt -- )
 	SIGINT ignore-signal if
 		errno> strerror type-err cr

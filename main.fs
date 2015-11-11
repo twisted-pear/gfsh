@@ -4,7 +4,9 @@ require parser.fs
 
 : main ( -- n )
 	0 begin
-		dup print-prompt
+		term? if
+			dup print-prompt
+		endif
 		read-cmdline while
 			tokenize-cmdline
 			0 >errno
@@ -27,4 +29,4 @@ require parser.fs
 			endif
 	repeat 2drop ;
 
-cr ' main init
+' main init
