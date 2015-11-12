@@ -118,11 +118,11 @@ set-current
 		assert( ps pstate-expecting @ 0= )
 		dup 0> if
 			create-ast-leaf-run
-			ps pstate-ast !
 		else
 			create-ast-leaf-noop
-			ps pstate-ast !
 		endif
+		ps pstate-ast !
+		0 ps pstate-empty !
 	else
 		ps pstate-expecting @ 0= throw \ Not expecting a command but still stuff left.
 		dup 0= throw \ Expecting another command but nothing left.
