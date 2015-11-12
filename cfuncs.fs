@@ -3,6 +3,7 @@
 \c #include <signal.h>
 \c #include <stdio.h>
 \c #include <stdlib.h>
+\c #include <string.h>
 \c #include <sys/wait.h>
 \c #include <unistd.h>
 
@@ -91,11 +92,16 @@ c-function libc-fork fork -- n
 
 c-function libc-exit exit n -- void
 
+c-function libc-strlen strlen a -- n
+
 : copy-to-c-string ( c-addr1 c-addr2 u -- )
 	dup >r over >r move 0 r> r> chars + c! ;
 
 : >c-string ( c-addr u -- c-addr )
 	dup char+ allocate throw >r r@ swap copy-to-c-string r> ;
+
+: c-string> ( c-addr -- c-addr u )
+	dup libc-strlen ;
 
 c-function libc-dup2 dup2 n n -- n
 
@@ -153,3 +159,9 @@ c-function libc-fdopen fdopen n a -- a
 	dup 0= throw ;
 
 c-function libc-isatty isatty n -- n
+
+s" readline" add-lib
+
+\c #include <readline/readline.h>
+
+c-function readline-readline readline a -- a

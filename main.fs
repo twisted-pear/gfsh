@@ -4,10 +4,10 @@ require parser.fs
 
 : main ( -- n )
 	0 begin
-		term? if
-			dup print-prompt
-		endif
+		dup prepare-prompt
 		read-cmdline while
+			\ Save address of readline string, we have to free it later.
+			swap >r r@ swap
 			tokenize-cmdline
 			0 >errno
 			>r r@
@@ -27,6 +27,8 @@ require parser.fs
 					nip
 				endif
 			endif
+			\ Free readline string.
+			r> free drop
 	repeat 2drop ;
 
 ' main init

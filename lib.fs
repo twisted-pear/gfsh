@@ -13,18 +13,40 @@ require cfuncs.fs
 : errno> ( n -- )
 	libc-errno> ;
 
-4096 constant max-line
-create line-buffer max-line chars allot
+128 constant max-prompt
+create prompt-buffer max-prompt chars allot
 
-: print-prompt ( u -- )
-	s" [" type 3 u.r s" ]$ " type ;
+: n>s ( n -- c-addr u )
+	dup >r abs s>d <# #s r> sign #> ;
+
+: prepare-prompt ( u -- c-addr u )
+	s" [" prompt-buffer place
+	n>s prompt-buffer +place
+	s" ]$ " prompt-buffer +place
+	prompt-buffer count ;
 
 : type-err ( c-addr u -- )
 	['] type stderr outfile-execute ;
 
-: read-cmdline ( -- c-addr u f )
-	line-buffer max-line stdin read-line throw
-	line-buffer rot rot ;
+: term? ( -- f )
+	stdin ['] >c-fd catch if
+		drop 0
+	else
+		libc-isatty
+	endif ;
+
+: read-cmdline ( c-addr u -- c-addr u f )
+	term? if
+		>c-string
+	else
+		2drop 0
+	endif
+	>r r@ readline-readline dup 0= if
+		0 0
+	else
+		c-string> -1
+	endif
+	r> free drop ;
 
 : skip-spaces ( c-addr u -- u )
 	0 over u-do
@@ -68,13 +90,6 @@ create line-buffer max-line chars allot
 		dup set-cloexec 0= while
 			1+
 	repeat drop ;
-
-: term? ( -- f )
-	stdin ['] >c-fd catch if
-		drop 0
-	else
-		libc-isatty
-	endif ;
 
 : init ( xt -- )
 	SIGINT ignore-signal if
