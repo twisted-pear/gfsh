@@ -20,12 +20,16 @@ require parser.fs
 				endif
 			else
 				r> drop
+				\ Save ast for deletion
+				>r r@
 				over swap ['] ast-exec catch if 
 					2drop
 					errno> strerror type-err cr
 				else
 					nip
 				endif
+				\ Free ast
+				r> ast-free
 			endif
 			\ Free readline string.
 			r> free drop

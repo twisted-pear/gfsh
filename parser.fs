@@ -89,12 +89,10 @@ get-current parse-special set-current
 set-current
 
 : clear-parser-state ( -- )
-	ps dup pstate-empty @ 0= if
-		dup pstate-ast @ ast-free
-	endif
-	dup pstate-empty -1 swap !
-	dup pstate-expecting 0 swap !
-	pstate-background 0 swap ! ;
+	0 ps pstate-ast !
+	-1 ps pstate-empty !
+	0 ps pstate-expecting !
+	0 ps pstate-background ! ;
 
 : parse-token ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
 	2dup parse-special search-wordlist 0= if
@@ -106,14 +104,12 @@ set-current
 
 : parse-cmdline-recursive ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
 	dup 0= if
-		clear-parser-state
 		exit
 	endif
 	rot rot >r >r 1- recurse
 	r> r> parse-token ;
-	
-: parse-cmdline ( c-addr1 u1 c-addr2 u2... u -- a-addr )
-	parse-cmdline-recursive
+
+: parse-cmdline-tail ( c-addr1 u1 c-addr2 u2... u -- a-addr )
 	ps pstate-empty @ if
 		assert( ps pstate-expecting @ 0= )
 		dup 0> if
@@ -131,3 +127,17 @@ set-current
 		ast-set-left
 	endif
 	ps pstate-ast @ ;
+
+: parse-cmdline-catch ( c-addr1 u1 c-addr2 u2... u -- a-addr )
+	parse-cmdline-recursive
+	parse-cmdline-tail ;
+
+: parse-cmdline ( c-addr1 u1 c-addr2 u2... u -- a-addr )
+	['] parse-cmdline-catch catch if
+		ps pstate-empty @ 0= if
+			ps pstate-ast @ ast-free
+		endif
+		clear-parser-state
+		1 throw
+	endif
+	clear-parser-state ;
