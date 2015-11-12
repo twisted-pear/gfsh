@@ -5,6 +5,8 @@ struct
 	cell% field pstate-empty
 	cell% field pstate-expecting
 	cell% field pstate-background
+	cell% field pstate-depth
+	cell% field pstate-special-table
 end-struct pstate%
 
 create ps pstate% %allot drop 
@@ -12,6 +14,7 @@ create ps pstate% %allot drop
 -1 ps pstate-empty !
 0 ps pstate-expecting !
 0 ps pstate-background !
+0 ps pstate-depth !
 
 : create-ast-leaf-noop ( 0 -- a-addr )
 	assert( dup 0= )
@@ -28,18 +31,30 @@ create ps pstate% %allot drop
 	r> dup ['] ast-leaf-run swap ast-set-func
 	0 ps pstate-background ! ;
 
+: create-ast-leaf-sub ( c-addr1 u1 c-addr2 u2... u -- a-addr )
+	assert( dup 0<> )
+	dup 2* 1+
+	ast-init >r r@ ast-read-params
+	ps pstate-background @ r@ ast-set-background
+	r> dup ['] ast-leaf-sub swap ast-set-func
+	0 ps pstate-background ! ;
+
 : create-ast-conn ( xt -- a-addr )
 	ast-init swap over ast-set-func ;
 
 : parse-connector ( c-addr1 u1 c-addr2 u2... u xt -- c-addr1 u1 c-addr2 u2... u )
 	>r
 	dup 0= if
-		r> drop
 		ps pstate-empty @ if
+			r> drop
 			exit
 		endif
 		ps pstate-expecting @ throw
-		assert( 0 )
+		r> create-ast-conn
+		dup ps pstate-ast @ swap ast-set-right
+		ps pstate-ast !
+		-1 ps pstate-expecting !
+		0
 	else
 		create-ast-leaf-run
 		ps pstate-empty @ if
@@ -56,50 +71,101 @@ create ps pstate% %allot drop
 		0
 	endif ;
 
-table constant parse-special
+table constant parse-special-regular
+table constant parse-special-braces
 
-get-current parse-special set-current
+get-current parse-special-regular set-current
 
-: ; ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
+: ; ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	2drop
 	['] ast-conn-seq parse-connector ;
 
-: & ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
+: & ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	2drop
 	['] ast-conn-seq parse-connector
 	-1 ps pstate-background ! ;
 
-: | ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
+: | ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	2drop
 	dup 0= if 
 		ps pstate-empty @ throw
 	endif
 	['] ast-conn-pipe parse-connector
 	-1 ps pstate-background ! ;
 
-: && ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
+: && ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	2drop
 	dup 0= if 
 		ps pstate-empty @ throw
 	endif
 	['] ast-conn-and parse-connector ;
 
-: || ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
+: || ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	2drop
 	dup 0= if 
 		ps pstate-empty @ throw
 	endif
 	['] ast-conn-or parse-connector ;
 
+: { ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	1 throw ;
+
+: } ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	2drop
+	assert( ps pstate-depth @ 0= )
+	dup 0<> if
+		1 throw
+	endif
+	assert( ps pstate-empty @ ps pstate-expecting @ or )
+	1 ps pstate-depth !
+	parse-special-braces ps pstate-special-table ! ;
+
+parse-special-braces set-current
+
+: { ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	assert( ps pstate-depth @ 0> )
+	ps pstate-depth @ 1- dup ps pstate-depth !
+	0> if
+		rot 1+
+		exit
+	endif
+	2drop
+	dup 0= throw
+	assert( ps pstate-empty @ ps pstate-expecting @ or )
+	parse-special-regular ps pstate-special-table !
+	create-ast-leaf-sub
+	ps pstate-empty @ if
+		ps pstate-ast !
+	else
+		assert( ps pstate-expecting @ )
+		ps pstate-ast @ ast-set-left
+	endif
+	0 ps pstate-expecting !
+	0 ps pstate-empty !
+	0 ;
+
+: } ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	rot 1+
+	ps pstate-depth @ 1+ ps pstate-depth ! ;
+
 set-current
+
+parse-special-regular ps pstate-special-table !
 
 : clear-parser-state ( -- )
 	0 ps pstate-ast !
 	-1 ps pstate-empty !
 	0 ps pstate-expecting !
-	0 ps pstate-background ! ;
+	0 ps pstate-background !
+	0 ps pstate-depth !
+	parse-special-regular ps pstate-special-table ! ;
 
 : parse-token ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	2dup parse-special search-wordlist 0= if
+	2dup ps pstate-special-table @ search-wordlist 0= if
 		\ no special char
 		rot 1+
 	else
-		rot rot 2drop execute
+		execute
 	endif ;
 
 : parse-cmdline-recursive ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
@@ -110,6 +176,7 @@ set-current
 	r> r> parse-token ;
 
 : parse-cmdline-tail ( c-addr1 u1 c-addr2 u2... u -- a-addr )
+	ps pstate-depth @ throw
 	ps pstate-empty @ if
 		assert( ps pstate-expecting @ 0= )
 		dup 0> if
@@ -120,11 +187,11 @@ set-current
 		ps pstate-ast !
 		0 ps pstate-empty !
 	else
-		ps pstate-expecting @ 0= throw \ Not expecting a command but still stuff left.
-		dup 0= throw \ Expecting another command but nothing left.
-		create-ast-leaf-run
-		ps pstate-ast @
-		ast-set-left
+		ps pstate-expecting @ if
+			dup 0= throw \ Expecting another command but nothing left.
+			create-ast-leaf-run
+			ps pstate-ast @ ast-set-left
+		endif
 	endif
 	ps pstate-ast @ ;
 

@@ -117,7 +117,10 @@ require builtins.fs
 
 : run-builtin ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f xt -- n )
 	\ TODO handle fds and maybe backgrounding
-	>r 2drop 2drop r>
+	>r
+	drop
+	close-new-fds
+	r>
 	execute ;
 
 \ This must not throw ever, catch all errors within and make sure that errno remains 0.

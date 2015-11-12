@@ -91,6 +91,10 @@ end-struct ast%
 : ast-leaf-noop ( n a-addr -- n )
 	drop ;
 
+: ast-leaf-sub ( n a-addr -- n )
+	\ TODO propagate fds and background stuff, parse and execute
+	drop ;
+
 : ast-conn-seq ( n a-addr -- n )
 	swap over ast-left @ ast-exec
 	swap ast-right @ ast-exec ;
