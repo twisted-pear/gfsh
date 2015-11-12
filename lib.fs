@@ -65,6 +65,9 @@ create term? -1 ,
 	endif
 	r> free drop ;
 
+: free-cmdline ( c-addr u -- )
+	drop libc-free ;
+
 : skip-spaces ( c-addr u -- u )
 	0 over u-do
 		2dup 1- chars + c@ bl <> if 

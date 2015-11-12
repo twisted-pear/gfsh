@@ -160,6 +160,8 @@ c-function libc-fdopen fdopen n a -- a
 
 c-function libc-isatty isatty n -- n
 
+c-function libc-free free a -- void
+
 s" readline" add-lib
 
 \c #include <readline/readline.h>

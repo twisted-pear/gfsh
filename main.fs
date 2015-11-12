@@ -7,7 +7,7 @@ require parser.fs
 		dup prepare-prompt
 		read-cmdline while
 			\ Save address of readline string, we have to free it later.
-			swap >r r@ swap
+			2dup >r >r
 			tokenize-cmdline
 			0 >errno
 			>r r@
@@ -32,7 +32,7 @@ require parser.fs
 				r> ast-free
 			endif
 			\ Free readline string.
-			r> free drop
+			r> r> free-cmdline
 	repeat 2drop ;
 
 ' main init
