@@ -19,9 +19,21 @@ create prompt-buffer max-prompt chars allot
 : n>s ( n -- c-addr u )
 	dup >r abs s>d <# #s r> sign #> ;
 
+: right-align ( c-addr u uX -- c-addr u )
+	over over < if
+		s" " pad place
+		over - 0 u+do
+			s"  " pad +place
+		loop
+		pad +place
+		pad count
+	else
+		drop
+	endif ;
+
 : prepare-prompt ( u -- c-addr u )
 	s" [" prompt-buffer place
-	n>s prompt-buffer +place
+	n>s 3 right-align prompt-buffer +place
 	s" ]$ " prompt-buffer +place
 	prompt-buffer count ;
 
