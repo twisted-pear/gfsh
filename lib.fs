@@ -13,9 +13,6 @@ require cfuncs.fs
 : errno> ( n -- )
 	libc-errno> ;
 
-128 constant max-prompt
-create prompt-buffer max-prompt chars allot
-
 : n>s ( n -- c-addr u )
 	dup >r abs s>d <# #s r> sign #> ;
 
@@ -31,6 +28,9 @@ create prompt-buffer max-prompt chars allot
 		drop
 	endif ;
 
+128 constant max-prompt
+create prompt-buffer max-prompt chars allot
+
 : prepare-prompt ( u -- c-addr u )
 	s" [" prompt-buffer place
 	n>s 3 right-align prompt-buffer +place
@@ -40,13 +40,6 @@ create prompt-buffer max-prompt chars allot
 : type-err ( c-addr u -- )
 	['] type stderr outfile-execute ;
 
-: term? ( -- f )
-	stdin ['] >c-fd catch if
-		drop 0
-	else
-		libc-isatty
-	endif ;
-
 : add-history ( c-addr u -- )
 	['] >c-string catch if
 		2drop
@@ -55,8 +48,10 @@ create prompt-buffer max-prompt chars allot
 		free drop
 	endif ;
 
+create term? -1 ,
+
 : read-cmdline ( c-addr u -- c-addr u f )
-	term? if
+	term? @ if
 		>c-string
 	else
 		2drop 0
@@ -123,6 +118,7 @@ create prompt-buffer max-prompt chars allot
 		EXIT_FAILURE terminate
 	endif
 	mark-fds-for-closing
+	stdin >c-fd libc-isatty term? !
 	catch if
 		errno> strerror type-err cr
 		EXIT_FAILURE
