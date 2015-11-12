@@ -35,6 +35,14 @@ create prompt-buffer max-prompt chars allot
 		libc-isatty
 	endif ;
 
+: add-history ( c-addr u -- )
+	['] >c-string catch if
+		2drop
+	else
+		dup readline-add_history
+		free drop
+	endif ;
+
 : read-cmdline ( c-addr u -- c-addr u f )
 	term? if
 		>c-string
@@ -44,7 +52,9 @@ create prompt-buffer max-prompt chars allot
 	>r r@ readline-readline dup 0= if
 		0 0
 	else
-		c-string> -1
+		c-string> dup 0> if
+			2dup add-history
+		endif -1
 	endif
 	r> free drop ;
 

@@ -165,3 +165,5 @@ s" readline" add-lib
 \c #include <readline/readline.h>
 
 c-function readline-readline readline a -- a
+
+c-function readline-add_history add_history a -- void
