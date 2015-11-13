@@ -91,7 +91,8 @@ end-struct ast%
 : ast-leaf-noop ( n a-addr -- n )
 	drop ;
 
-: ast-leaf-sub ( n a-addr -- n )
+: ast-{} ( n a-addr -- n )
+	assert( dup ast-right @ 0= )
 	\ TODO propagate fds and background stuff, parse and execute
 	drop ;
 

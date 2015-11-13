@@ -16,6 +16,26 @@ create ps pstate% %allot drop
 0 ps pstate-background !
 0 ps pstate-depth !
 
+: pstate-dump ( -- a1 a2... u )
+	ps pstate-ast @
+	ps pstate-empty @
+	ps pstate-expecting @
+	ps pstate-background @
+	ps pstate-depth @
+	ps pstate-special-table @
+	6 ;
+
+: pstate-restore ( a1 a2... u )
+	drop
+	ps pstate-special-table !
+	ps pstate-depth !
+	ps pstate-background !
+	ps pstate-expecting !
+	ps pstate-empty !
+	ps pstate-ast ! ;
+
+defer parse-cmdline ( c-addr1 u1 c-addr2 u2... u -- a-addr )
+
 : create-ast-leaf-noop ( 0 -- a-addr )
 	assert( dup 0= )
 	drop
@@ -31,13 +51,25 @@ create ps pstate% %allot drop
 	r> dup ['] ast-leaf-run swap ast-set-func
 	0 ps pstate-background ! ;
 
-: create-ast-leaf-sub ( c-addr1 u1 c-addr2 u2... u -- a-addr )
+: create-ast-{} ( c-addr1 u1 c-addr2 u2... u -- a-addr )
 	assert( dup 0<> )
-	dup 2* 1+
-	ast-init >r r@ ast-read-params
+	ast-init >r r@ ['] ast-{} swap ast-set-func
 	ps pstate-background @ r@ ast-set-background
-	r> dup ['] ast-leaf-sub swap ast-set-func
-	0 ps pstate-background ! ;
+	0 ps pstate-background !
+	pstate-dump dup begin
+		dup 0> while rot >r 1-
+	repeat drop >r
+	['] parse-cmdline catch
+	r> dup begin
+		dup 0> while r> rot rot 1-
+	repeat drop pstate-restore
+	if
+		r> ast-free
+		1 throw
+	endif
+	r@ ast-set-left
+	r> ;
+
 
 : create-ast-conn ( xt -- a-addr )
 	ast-init swap over ast-set-func ;
@@ -60,7 +92,10 @@ create ps pstate% %allot drop
 		ps pstate-empty @ if
 			ps pstate-ast !
 		else
-			assert( ps pstate-expecting @ )
+			ps pstate-expecting @ 0= if 
+				ast-free
+				1 throw
+			endif
 			ps pstate-ast @ ast-set-left
 		endif
 		r> create-ast-conn
@@ -133,7 +168,7 @@ parse-special-braces set-current
 	dup 0= throw
 	assert( ps pstate-empty @ ps pstate-expecting @ or )
 	parse-special-regular ps pstate-special-table !
-	create-ast-leaf-sub
+	create-ast-{}
 	ps pstate-empty @ if
 		ps pstate-ast !
 	else
@@ -199,12 +234,13 @@ parse-special-regular ps pstate-special-table !
 	parse-cmdline-recursive
 	parse-cmdline-tail ;
 
-: parse-cmdline ( c-addr1 u1 c-addr2 u2... u -- a-addr )
+: parse-cmdline-real ( c-addr1 u1 c-addr2 u2... u -- a-addr )
+	clear-parser-state
 	['] parse-cmdline-catch catch if
 		ps pstate-empty @ 0= if
 			ps pstate-ast @ ast-free
 		endif
-		clear-parser-state
 		1 throw
-	endif
-	clear-parser-state ;
+	endif ;
+
+' parse-cmdline-real is parse-cmdline
