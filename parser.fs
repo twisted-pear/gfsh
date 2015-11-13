@@ -67,7 +67,7 @@ defer parse-cmdline ( c-addr1 u1 c-addr2 u2... u -- a-addr )
 		r> ast-free
 		1 throw
 	endif
-	r@ ast-set-left
+	r@ ast-set-sub
 	r> ;
 
 
@@ -226,6 +226,8 @@ parse-special-regular ps pstate-special-table !
 			dup 0= throw \ Expecting another command but nothing left.
 			create-ast-leaf-run
 			ps pstate-ast @ ast-set-left
+		else
+			throw
 		endif
 	endif
 	ps pstate-ast @ ;

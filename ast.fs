@@ -5,6 +5,7 @@ require run.fs
 struct
 	cell% field ast-left
 	cell% field ast-right
+	cell% field ast-sub
 	cell% field ast-func
 	cell% field ast-background
 	cell% field ast-stdin
@@ -29,6 +30,9 @@ end-struct ast%
 
 : ast-set-right ( child parent -- )
 	ast-right ! ;
+
+: ast-set-sub ( child parent -- )
+	ast-sub ! ;
 
 : ast-set-func ( xt node -- )
 	ast-func ! ;
@@ -92,9 +96,13 @@ end-struct ast%
 	drop ;
 
 : ast-{} ( n a-addr -- n )
+	assert( dup ast-left @ 0= )
 	assert( dup ast-right @ 0= )
-	\ TODO propagate fds and background stuff, parse and execute
-	drop ;
+	>r r@ ast-sub @
+	r@ ast-stdin @ r@ ast-stdout @ stderr
+	r> ast-background @
+	['] ast-exec run-xt
+	rot rot 2drop ;
 
 : ast-conn-seq ( n a-addr -- n )
 	swap over ast-left @ ast-exec

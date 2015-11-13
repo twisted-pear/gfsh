@@ -103,6 +103,8 @@ c-function libc-strlen strlen a -- n
 : c-string> ( c-addr -- c-addr u )
 	dup libc-strlen ;
 
+c-function libc-dup dup n -- n
+
 c-function libc-dup2 dup2 n n -- n
 
 c-function libc-close close n -- n

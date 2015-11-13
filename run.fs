@@ -38,7 +38,7 @@ require builtins.fs
 		drop
 	endif ;
 
-: child-exec ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN -- )
+: child-exec ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN -- n )
 	rot 1+
 	init-argv
 	dup dup @ swap libc-execvp swap
@@ -71,28 +71,31 @@ require builtins.fs
 		drop
 	endif ;
 
-: run-program ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f -- n )
+\ This must not throw ever, catch all errors within.
+: run-xt ( a a a f xt -- n )
+	SIGCHLD block-signal
 	libc-fork dup 0< if
 		drop
-		drop close-new-fds
-		rot 1+ consume-argv
+		2drop close-new-fds
 		errno>
+		SIGCHLD unblock-signal
 		exit
 	endif
 	dup 0> if
 		\ parent
-		>r >r
+		>r drop >r
 		close-new-fds
-		rot 1+ consume-argv
 		r> if 
 			r> drop 0
 		else
 			r> wait-for-child
 		endif
+		SIGCHLD unblock-signal
 	else
 		\ child
-		2drop
+		drop >r drop
 		restore-sigint
+		SIGCHLD unblock-signal
 		stderr ['] replace-fd catch if
 			errno> strerror type-err cr
 			EXIT_FAILURE terminate
@@ -106,13 +109,15 @@ require builtins.fs
 			EXIT_FAILURE terminate
 		endif
 		\ The stack is not cleaned up here since we terminate the process anyway.
-		['] child-exec catch drop
-		errno> strerror type-err cr
-		errno> ENOENT = if
-			EXIT_NOENT
-		else
-			EXIT_FAILURE
-		endif terminate
+		r> catch if
+			errno> strerror type-err cr
+			errno> ENOENT = if
+				EXIT_NOENT
+			else
+				EXIT_FAILURE
+			endif terminate
+		endif
+		terminate
 	endif ;
 
 : run-builtin ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f xt -- n )
@@ -127,14 +132,15 @@ require builtins.fs
 : run ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f -- n )
 	errno> >r 0 >errno
 	>r >r >r >r
-	2dup builtins search-wordlist if 
+	2dup builtins search-wordlist if
 		\ builtin
 		r> swap r> swap r> swap r> swap run-builtin
 	else
 		\ no builtin
 		r> r> r> r>
-		SIGCHLD block-signal
-		run-program
-		SIGCHLD unblock-signal
+		['] child-exec run-xt
+		>r
+		rot 1+ consume-argv
+		r>
 	endif
 	r> >errno ;
