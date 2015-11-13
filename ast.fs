@@ -18,6 +18,7 @@ end-struct ast%
 	ast% %allocate throw
 	dup ast-left 0 swap !
 	dup ast-right 0 swap !
+	dup ast-sub 0 swap !
 	dup ast-func 0 swap !
 	dup ast-background 0 swap !
 	dup ast-stdin stdin swap !
@@ -64,6 +65,7 @@ end-struct ast%
 	dup ast-params @ free drop
 	dup ast-left @ recurse
 	dup ast-right @ recurse
+	dup ast-sub @ recurse
 	free drop ;
 
 : ast-pred ( a-addr -- a-addr )
