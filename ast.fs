@@ -10,6 +10,7 @@ struct
 	cell% field ast-background
 	cell% field ast-stdin
 	cell% field ast-stdout
+	cell% field ast-stderr
 	cell% field ast-n-params
 	cell% field ast-params
 end-struct ast%
@@ -23,6 +24,7 @@ end-struct ast%
 	dup ast-background 0 swap !
 	dup ast-stdin stdin swap !
 	dup ast-stdout stdout swap !
+	dup ast-stderr stderr swap !
 	dup ast-n-params 0 swap !
 	dup ast-params 0 swap ! ;
 
@@ -90,7 +92,7 @@ end-struct ast%
 : ast-leaf-run ( n a-addr -- n )
 	>r drop r@
 	ast-dump-params
-	r@ ast-stdin @ r@ ast-stdout @ stderr
+	r@ ast-stdin @ r@ ast-stdout @ r@ ast-stderr @
 	r> ast-background @
 	run ;
 
@@ -101,7 +103,7 @@ end-struct ast%
 	assert( dup ast-left @ 0= )
 	assert( dup ast-right @ 0= )
 	>r r@ ast-sub @
-	r@ ast-stdin @ r@ ast-stdout @ stderr
+	r@ ast-stdin @ r@ ast-stdout @ r@ ast-stderr @
 	r> ast-background @
 	['] ast-exec run-xt
 	rot rot 2drop ;
