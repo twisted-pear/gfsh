@@ -110,41 +110,38 @@ end-struct ast%
 	swap over ast-left @ ast-exec
 	swap ast-right @ ast-exec ;
 
-\ TODO clean up error paths here
 : ast-conn-pipe-left ( n a-addr a a -- n )
-	dup >r
-	2drop
-	ast-left @ ast-exec
-	r> close-file drop ;
+	swap >r >r
+	ast-left @ ['] ast-exec catch ( n 0 | x x >0 -- )
+	r> close-file drop
+	r> swap
+	if
+		close-file drop
+		2drop
+		1 throw
+	endif
+	drop ;
 
 : ast-conn-pipe-right ( n a-addr a a -- n )
-	over >r
-	2drop
-	ast-right @ ast-exec
-	r> close-file drop ;
+	drop >r
+	ast-right @ ['] ast-exec catch ( n 0 | x x >0 -- )
+	r> close-file drop
+	if
+		2drop
+		1 throw
+	endif ;
 
 : ast-conn-pipe ( n a-addr -- n )
 	assert( dup ast-left @ 0<> )
 	assert( dup ast-right @ 0<> )
-	swap >r >r
+	dup >r
 	create-pipe 2dup
 	r@ ast-pred ast-stdout !
 	r@ ast-succ ast-stdin !
-	r> r> swap >r r@ 2over
-	['] ast-conn-pipe-left catch if
-		2drop 2drop
-		close-file
-		close-file
-		1 throw
-	endif
-	r> 2over
-	['] ast-conn-pipe-right catch if
-		2drop 2drop
-		drop
-		close-file
-		1 throw
-	endif
-	rot rot 2drop ;
+	2dup >r >r
+	ast-conn-pipe-left
+	r> r> r> rot rot
+	ast-conn-pipe-right ;
 
 : ast-conn-and ( n a-addr -- n )
 	swap over ast-left @ ast-exec
