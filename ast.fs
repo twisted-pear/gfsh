@@ -110,13 +110,18 @@ end-struct ast%
 	swap over ast-left @ ast-exec
 	swap ast-right @ ast-exec ;
 
+\ TODO clean up error paths here
 : ast-conn-pipe-left ( n a-addr a a -- n )
-	pipe-prepare-write
-	ast-left @ ast-exec ;
+	dup >r
+	2drop
+	ast-left @ ast-exec
+	r> close-file drop ;
 
 : ast-conn-pipe-right ( n a-addr a a -- n )
-	pipe-prepare-read
-	ast-right @ ast-exec ;
+	over >r
+	2drop
+	ast-right @ ast-exec
+	r> close-file drop ;
 
 : ast-conn-pipe ( n a-addr -- n )
 	assert( dup ast-left @ 0<> )

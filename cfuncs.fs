@@ -132,7 +132,7 @@ c-function reset-cloexec reset_cloexec n -- n
 \ FIXME Hack to work around different int sizes.
 \c int pipe_wrapper(long fds[2]) {
 \c	int pipefd[2];
-\c	int ret = pipe(pipefd);
+\c	int ret = pipe2(pipefd, O_CLOEXEC);
 \c	fds[0] = pipefd[0];
 \c	fds[1] = pipefd[1];
 \c	return ret;

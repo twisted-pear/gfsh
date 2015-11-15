@@ -20,11 +20,3 @@ require lib.fs
 		1 throw
 	endif
 	rot free drop ;
-
-: pipe-prepare-write ( a a -- )
-	drop
-	>c-fd set-cloexec throw ;
-
-: pipe-prepare-read ( a a -- )
-	drop
-	>c-fd reset-cloexec throw ;

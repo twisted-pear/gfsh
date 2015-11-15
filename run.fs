@@ -51,16 +51,6 @@ require builtins.fs
 		EXIT_FAILURE terminate
 	endif ;
 
-: close-fd-on-<> ( a a -- )
-	over <> if
-		close-file
-	endif drop ;
-
-: close-new-fds ( a a a -- )
-	stderr close-fd-on-<>
-	stdout close-fd-on-<>
-	stdin close-fd-on-<> ;
-
 : replace-fd ( a a -- )
 	>c-fd swap >c-fd swap
 	2dup libc-dup2 -1 = throw
@@ -76,7 +66,8 @@ require builtins.fs
 	SIGCHLD block-signal
 	libc-fork dup 0< if
 		drop
-		2drop close-new-fds
+		2drop
+		2drop drop
 		errno>
 		SIGCHLD unblock-signal
 		exit
@@ -84,7 +75,7 @@ require builtins.fs
 	dup 0> if
 		\ parent
 		>r drop >r
-		close-new-fds
+		2drop drop
 		r> if 
 			r> drop 0
 		else
@@ -124,7 +115,7 @@ require builtins.fs
 	\ TODO handle fds and maybe backgrounding
 	>r
 	drop
-	close-new-fds
+	2drop drop
 	r>
 	execute ;
 
