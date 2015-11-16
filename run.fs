@@ -75,15 +75,7 @@ require builtins.fs
 			EXIT_FAILURE terminate
 		endif
 		SIGCHLD unblock-signal
-		stderr ['] replace-fd catch if
-			errno> strerror type-err cr-err
-			EXIT_FAILURE terminate
-		endif
-		stdout ['] replace-fd catch if
-			errno> strerror type-err cr-err
-			EXIT_FAILURE terminate
-		endif
-		stdin ['] replace-fd catch if
+		['] replace-std-fds catch if
 			errno> strerror type-err cr-err
 			EXIT_FAILURE terminate
 		endif
@@ -99,6 +91,7 @@ require builtins.fs
 		terminate
 	endif ;
 
+\ This must not throw ever, catch all errors within.
 : run-builtin ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f xt -- n )
 	\ TODO handle fds and maybe backgrounding
 	>r
