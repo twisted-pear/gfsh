@@ -93,12 +93,47 @@ require builtins.fs
 
 \ This must not throw ever, catch all errors within.
 : run-builtin ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f xt -- n )
-	\ TODO handle fds and maybe backgrounding
-	>r
-	drop
-	2drop drop
-	r>
-	execute ;
+	['] copy-std-fds catch if
+		2drop
+		2drop drop
+		rot 1+ consume-argv
+		errno>
+		exit
+	endif >r >r >r
+	>r >r
+	['] replace-std-fds catch if
+		2drop drop
+		rot 1+ consume-argv
+		r> r> 2drop
+		r> r> r> ['] restore-std-fds catch if
+			2drop drop
+		endif
+		errno>
+		exit
+	endif
+	r> if
+		\ run in bg
+		['] fork catch if
+			errno>
+		else
+			0= if
+				r> execute terminate
+				\ child
+			endif
+			0
+		endif
+		>r
+		rot 1+ consume-argv
+		r>
+		r> drop
+	else
+		\ run in fg
+		r> execute
+	endif
+	r> r> r> ['] restore-std-fds catch if
+		2drop drop
+		drop errno>
+	endif ;
 
 \ This must not throw ever, catch all errors within and make sure that errno remains 0.
 : run ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f -- n )
