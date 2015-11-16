@@ -1,4 +1,5 @@
 require cfuncs.fs
+require fd.fs
 require lib.fs
 require builtins.fs
 
@@ -49,16 +50,6 @@ require builtins.fs
 	SIGINT default-signal if
 		errno> strerror type-err cr
 		EXIT_FAILURE terminate
-	endif ;
-
-: replace-fd ( a a -- )
-	>c-fd swap >c-fd swap
-	2dup libc-dup2 -1 = throw
-	\ Close old fd if it is different from the new one.
-	over <> if
-		set-cloexec throw
-	else
-		drop
 	endif ;
 
 \ This must not throw ever, catch all errors within.

@@ -1,4 +1,5 @@
 require lib.fs
+require fd.fs
 require pipe.fs
 require run.fs
 
@@ -89,6 +90,27 @@ end-struct ast%
 : ast-exec ( n a-addr -- n )
 	dup ast-func @ execute ;
 
+: ast-exec-bg ( n a-addr -- n )
+	fork 0= if
+		\ child
+		dup ast-func @ catch if
+			2drop
+			errno> strerror type-err cr
+			EXIT_FAILURE terminate
+		endif
+		terminate
+	else
+		\ parent
+		2drop 0
+	endif ;
+
+: ast-exec-bg? ( n a-addr f -- n )
+	if
+		ast-exec-bg
+	else
+		ast-exec
+	endif ;
+
 : ast-leaf-run ( n a-addr -- n )
 	>r drop r@
 	ast-dump-params
@@ -102,11 +124,20 @@ end-struct ast%
 : ast-{} ( n a-addr -- n )
 	assert( dup ast-left @ 0= )
 	assert( dup ast-right @ 0= )
-	>r r@ ast-sub @
-	r@ ast-stdin @ r@ ast-stdout @ r@ ast-stderr @
-	r> ast-background @
-	['] ast-exec run-xt
-	rot rot 2drop ;
+	copy-std-fds >r >r >r
+	dup >r
+	r@ ast-stdin @ r@ ast-stdout @ r@ ast-stderr @ ['] replace-std-fds catch if
+		r> drop
+		r> r> r> restore-std-fds
+		1 throw
+	endif
+	ast-sub @
+	r> ast-background @ ['] ast-exec-bg? catch ( n 0 | x x x >0 -- )
+	r> r> r> restore-std-fds
+	if
+		2drop drop
+		1 throw
+	endif ;
 
 : ast-conn-seq ( n a-addr -- n )
 	swap over ast-left @ ast-exec

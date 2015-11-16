@@ -13,6 +13,9 @@ require cfuncs.fs
 : errno> ( n -- )
 	libc-errno> ;
 
+: fork ( -- )
+	libc-fork dup 0< throw ;
+
 : n>s ( n -- c-addr u )
 	dup >r abs s>d <# #s r> sign #> ;
 
