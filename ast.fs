@@ -101,7 +101,7 @@ end-struct ast%
 		terminate
 	else
 		\ parent
-		2drop 0
+		2drop EXIT_SUCCESS
 	endif ;
 
 : ast-exec-bg? ( n a-addr f -- n )

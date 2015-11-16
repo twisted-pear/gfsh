@@ -3,7 +3,7 @@ require lib.fs
 require parser.fs
 
 : main ( -- n )
-	0 begin
+	EXIT_SUCCESS begin
 		dup prepare-prompt
 		read-cmdline while
 			\ Save address of readline string, we have to free it later.
