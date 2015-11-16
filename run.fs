@@ -47,10 +47,10 @@ require builtins.fs
 	drop 1 throw ;
 
 \ This must not throw ever, catch all errors within.
-: run-program ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f -- n )
+: run-program ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN f -- n )
 	SIGCHLD block-signal
 	['] fork catch if
-		2drop 2drop
+		drop
 		rot 1+ consume-argv
 		SIGCHLD unblock-signal
 		errno>
@@ -59,10 +59,9 @@ require builtins.fs
 	dup 0> if
 		\ parent
 		>r >r
-		2drop drop
 		rot 1+ consume-argv
 		r> if 
-			r> drop 0
+			r> drop EXIT_SUCCESS
 		else
 			r> wait-for-child
 		endif
@@ -75,10 +74,6 @@ require builtins.fs
 			EXIT_FAILURE terminate
 		endif
 		SIGCHLD unblock-signal
-		['] replace-std-fds catch if
-			errno> strerror type-err cr-err
-			EXIT_FAILURE terminate
-		endif
 		\ The stack is not cleaned up here since we terminate the process anyway.
 		['] child-exec catch if
 			errno> strerror type-err cr-err
@@ -92,59 +87,61 @@ require builtins.fs
 	endif ;
 
 \ This must not throw ever, catch all errors within.
-: run-builtin ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f xt -- n )
-	['] copy-std-fds catch if
-		2drop
-		2drop drop
-		rot 1+ consume-argv
-		errno>
-		exit
-	endif >r >r >r
-	>r >r
-	['] replace-std-fds catch if
-		2drop drop
-		rot 1+ consume-argv
-		r> r> 2drop
-		r> r> r> ['] restore-std-fds catch if
-			2drop drop
-		endif
-		errno>
-		exit
-	endif
-	r> if
+: run-builtin ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN f xt -- n )
+	swap if
 		\ run in bg
 		['] fork catch if
 			errno>
 		else
 			0= if
-				r> execute terminate
+				execute terminate
 				\ child
 			endif
-			0
+			EXIT_SUCCESS
 		endif
 		>r
+		drop
 		rot 1+ consume-argv
 		r>
-		r> drop
 	else
 		\ run in fg
-		r> execute
-	endif
-	r> r> r> ['] restore-std-fds catch if
-		2drop drop
-		drop errno>
+		execute
 	endif ;
 
 \ This must not throw ever, catch all errors within and make sure that errno remains 0.
 : run ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f -- n )
 	errno> >r 0 >errno
-	>r >r >r >r
+	['] copy-std-fds catch if
+		drop
+		2drop drop
+		rot 1+ consume-argv
+		errno>
+		r> >errno
+		exit
+	endif >r >r >r
+	>r
+	['] replace-std-fds catch if
+		2drop drop
+		rot 1+ consume-argv
+		r> drop
+		r> r> r> ['] restore-std-fds catch if
+			2drop drop
+		endif
+		errno>
+		r> >errno
+		exit
+	endif
 	2dup builtins search-wordlist if
 		\ builtin
-		r> swap r> swap r> swap r> swap run-builtin
+		r> swap
+		run-builtin
 	else
 		\ no builtin
-		r> r> r> r>
+		r>
 		run-program
+	endif
+	r> r> r> ['] restore-std-fds catch if
+		2drop drop
+		drop errno>
 	endif
 	r> >errno ;
