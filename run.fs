@@ -48,7 +48,7 @@ require builtins.fs
 
 : restore-sigint ( -- )
 	SIGINT default-signal if
-		errno> strerror type-err cr
+		errno> strerror type-err cr-err
 		EXIT_FAILURE terminate
 	endif ;
 
@@ -79,20 +79,20 @@ require builtins.fs
 		restore-sigint
 		SIGCHLD unblock-signal
 		stderr ['] replace-fd catch if
-			errno> strerror type-err cr
+			errno> strerror type-err cr-err
 			EXIT_FAILURE terminate
 		endif
 		stdout ['] replace-fd catch if
-			errno> strerror type-err cr
+			errno> strerror type-err cr-err
 			EXIT_FAILURE terminate
 		endif
 		stdin ['] replace-fd catch if
-			errno> strerror type-err cr
+			errno> strerror type-err cr-err
 			EXIT_FAILURE terminate
 		endif
 		\ The stack is not cleaned up here since we terminate the process anyway.
 		r> catch if
-			errno> strerror type-err cr
+			errno> strerror type-err cr-err
 			errno> ENOENT = if
 				EXIT_NOENT
 			else

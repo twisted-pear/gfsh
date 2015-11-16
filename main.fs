@@ -14,9 +14,9 @@ require parser.fs
 			['] parse-cmdline catch if
 				r> 2 * 1+ cleanup-stack
 				errno> if
-					errno> strerror type-err cr
+					errno> strerror type-err cr-err
 				else
-					s" Syntax error" type-err cr
+					s" Syntax error" type-err cr-err
 				endif
 			else
 				r> drop
@@ -24,7 +24,7 @@ require parser.fs
 				>r r@
 				over swap ['] ast-exec catch if 
 					2drop
-					errno> strerror type-err cr
+					errno> strerror type-err cr-err
 				else
 					nip
 				endif

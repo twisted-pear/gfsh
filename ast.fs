@@ -95,7 +95,7 @@ end-struct ast%
 		\ child
 		dup ast-func @ catch if
 			2drop
-			errno> strerror type-err cr
+			errno> strerror type-err cr-err
 			EXIT_FAILURE terminate
 		endif
 		terminate

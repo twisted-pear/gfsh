@@ -43,6 +43,9 @@ create prompt-buffer max-prompt chars allot
 : type-err ( c-addr u -- )
 	['] type stderr outfile-execute ;
 
+: cr-err ( -- )
+	['] cr stderr outfile-execute ;
+
 : add-history ( c-addr u -- )
 	['] >c-string catch if
 		2drop
@@ -116,16 +119,16 @@ create term? -1 ,
 
 : init ( xt -- )
 	SIGINT ignore-signal if
-		errno> strerror type-err cr
+		errno> strerror type-err cr-err
 		EXIT_FAILURE terminate
 	endif
 	install-sigchld-handler if
-		errno> strerror type-err cr
+		errno> strerror type-err cr-err
 		EXIT_FAILURE terminate
 	endif
 	mark-fds-for-closing
 	stdin >c-fd libc-isatty term? !
 	catch if
-		errno> strerror type-err cr
+		errno> strerror type-err cr-err
 		EXIT_FAILURE
 	endif terminate ;
