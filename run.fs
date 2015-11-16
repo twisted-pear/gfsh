@@ -46,27 +46,21 @@ require builtins.fs
 	free-argv
 	drop 1 throw ;
 
-: restore-sigint ( -- )
-	SIGINT default-signal if
-		errno> strerror type-err cr-err
-		EXIT_FAILURE terminate
-	endif ;
-
 \ This must not throw ever, catch all errors within.
-: run-xt ( a a a f xt -- n )
+: run-program ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f -- n )
 	SIGCHLD block-signal
-	libc-fork dup 0< if
-		drop
-		2drop
-		2drop drop
-		errno>
+	['] fork catch if
+		2drop 2drop
+		rot 1+ consume-argv
 		SIGCHLD unblock-signal
+		errno>
 		exit
 	endif
 	dup 0> if
 		\ parent
-		>r drop >r
+		>r >r
 		2drop drop
+		rot 1+ consume-argv
 		r> if 
 			r> drop 0
 		else
@@ -75,8 +69,11 @@ require builtins.fs
 		SIGCHLD unblock-signal
 	else
 		\ child
-		drop >r drop
-		restore-sigint
+		2drop
+		SIGINT default-signal if
+			errno> strerror type-err cr-err
+			EXIT_FAILURE terminate
+		endif
 		SIGCHLD unblock-signal
 		stderr ['] replace-fd catch if
 			errno> strerror type-err cr-err
@@ -91,7 +88,7 @@ require builtins.fs
 			EXIT_FAILURE terminate
 		endif
 		\ The stack is not cleaned up here since we terminate the process anyway.
-		r> catch if
+		['] child-exec catch if
 			errno> strerror type-err cr-err
 			errno> ENOENT = if
 				EXIT_NOENT
@@ -120,9 +117,6 @@ require builtins.fs
 	else
 		\ no builtin
 		r> r> r> r>
-		['] child-exec run-xt
-		>r
-		rot 1+ consume-argv
-		r>
+		run-program
 	endif
 	r> >errno ;
