@@ -1,4 +1,5 @@
 require ast.fs
+require variables.fs
 
 struct
 	cell% field pstate-ast
@@ -26,6 +27,7 @@ create ps pstate% %allot drop
 	6 ;
 
 : pstate-restore ( a1 a2... u )
+	assert( dup 6 = )
 	drop
 	ps pstate-special-table !
 	ps pstate-depth !
@@ -44,8 +46,7 @@ defer parse-cmdline ( c-addr1 u1 c-addr2 u2... u -- a-addr )
 
 : create-ast-leaf-run ( c-addr1 u1 c-addr2 u2... u -- a-addr )
 	assert( dup 0<> )
-	>r r@ 1- rot rot
-	r> 2* 1+
+	dup 2* 1+
 	ast-init >r r@ ast-read-params
 	ps pstate-background @ r@ ast-set-background
 	r> dup ['] ast-leaf-run swap ast-set-func
@@ -86,7 +87,6 @@ defer parse-cmdline ( c-addr1 u1 c-addr2 u2... u -- a-addr )
 		dup ps pstate-ast @ swap ast-set-right
 		ps pstate-ast !
 		-1 ps pstate-expecting !
-		0
 	else
 		create-ast-leaf-run
 		ps pstate-empty @ if
@@ -110,6 +110,9 @@ table constant parse-special-regular
 table constant parse-special-braces
 
 get-current parse-special-regular set-current
+
+: variable? ( c-addr u -- f )
+	var-access? ;
 
 : ; ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
 	2drop
@@ -157,6 +160,10 @@ get-current parse-special-regular set-current
 
 parse-special-braces set-current
 
+: variable? ( c-addr u -- f )
+	2drop
+	0 ;
+
 : { ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
 	assert( ps pstate-depth @ 0> )
 	ps pstate-depth @ 1- dup ps pstate-depth !
@@ -196,6 +203,14 @@ parse-special-regular ps pstate-special-table !
 	parse-special-regular ps pstate-special-table ! ;
 
 : parse-token ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	2dup s" variable?" ps pstate-special-table @ search-wordlist
+	assert( dup 0<> )
+	drop execute if
+		rot 1+
+		\ insert marker for AST
+		0 0 rot 1+
+		exit
+	endif
 	2dup ps pstate-special-table @ search-wordlist 0= if
 		\ no special char
 		rot 1+

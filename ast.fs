@@ -2,6 +2,7 @@ require lib.fs
 require fd.fs
 require pipe.fs
 require run.fs
+require variables.fs
 
 struct
 	cell% field ast-left
@@ -87,8 +88,12 @@ end-struct ast%
 			ast-left @
 	repeat drop ;
 
+: update-$? ( n -- )
+	n>s s" $?" var-store ;
+
 : ast-exec ( n a-addr -- n )
-	dup ast-func @ execute ;
+	dup ast-func @ execute
+	dup update-$? ;
 
 : ast-exec-bg ( n a-addr -- n )
 	fork 0= if
@@ -102,6 +107,7 @@ end-struct ast%
 	else
 		\ parent
 		2drop EXIT_SUCCESS
+		dup update-$?
 	endif ;
 
 : ast-exec-bg? ( n a-addr f -- n )
@@ -111,9 +117,27 @@ end-struct ast%
 		ast-exec
 	endif ;
 
+: replace-variables ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
+	dup 0= if
+		exit
+	endif
+	rot rot over 0= if
+		\ next string is a variable access
+		2drop 1-
+		assert( dup 0> )
+		rot rot
+		assert( 2dup var-access? )
+		var-load
+	endif
+	>r >r 1- recurse
+	r> r> rot 1+
+	;
+
 : ast-leaf-run ( n a-addr -- n )
 	>r drop r@
 	ast-dump-params
+	replace-variables
+	1- rot rot
 	r@ ast-stdin @ r@ ast-stdout @ r@ ast-stderr @
 	r> ast-background @
 	run ;
