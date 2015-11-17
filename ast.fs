@@ -145,6 +145,14 @@ end-struct ast%
 : ast-leaf-noop ( n a-addr -- n )
 	drop ;
 
+: ast-leaf-assign ( n a-addr -- n )
+	nip ast-dump-params
+	s" $" pad place
+	pad +place
+	pad count
+	var-store
+	0 ;
+
 : ast-{} ( n a-addr -- n )
 	assert( dup ast-left @ 0= )
 	assert( dup ast-right @ 0= )

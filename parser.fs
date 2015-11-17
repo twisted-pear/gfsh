@@ -71,6 +71,34 @@ defer parse-cmdline ( c-addr1 u1 c-addr2 u2... u -- a-addr )
 	r@ ast-set-sub
 	r> ;
 
+: create-ast-assign ( c-addr1 u1 c-addr2 u2 -- a-addr )
+	assert( dup 82 <= ) \ This limit is imposed by pad.
+	ast-init >r
+	['] ast-leaf-assign r@ ast-set-func
+	ps pstate-background @ r@ ast-set-background
+	4 r@ ast-read-params
+	0 ps pstate-background !
+	r> ;
+
+: parse-assign ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	rot 0<> throw
+	ps pstate-empty @ ps pstate-expecting @ or 0= throw
+	2dup s" =" search
+	assert( dup )
+	drop
+	assert( 2over 2over drop nip <> )
+	dup >r 1- swap char+ swap
+	2swap r> -
+	dup 82 > throw \ This limit is imposed by pad.
+	create-ast-assign
+	ps pstate-ast
+	ps pstate-expecting @ if
+		assert( ps pstate-empty @ 0= )
+		@ ast-left
+		0 ps pstate-expecting !
+	endif !
+	0 ps pstate-empty !
+	0 ;
 
 : create-ast-conn ( xt -- a-addr )
 	ast-init swap over ast-set-func ;
@@ -110,6 +138,12 @@ table constant parse-special-regular
 table constant parse-special-braces
 
 get-current parse-special-regular set-current
+
+: assignment? ( c-addr u -- f )
+	over >r
+	s" =" search
+	rot rot drop
+	r> <> and ;
 
 : variable? ( c-addr u -- f )
 	var-access? ;
@@ -160,6 +194,10 @@ get-current parse-special-regular set-current
 
 parse-special-braces set-current
 
+: assignment? ( c-addr u -- f )
+	2drop
+	0 ;
+
 : variable? ( c-addr u -- f )
 	2drop
 	0 ;
@@ -203,6 +241,12 @@ parse-special-regular ps pstate-special-table !
 	parse-special-regular ps pstate-special-table ! ;
 
 : parse-token ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
+	2dup s" assignment?" ps pstate-special-table @ search-wordlist
+	assert( dup 0<> )
+	drop execute if
+		parse-assign
+		exit
+	endif
 	2dup s" variable?" ps pstate-special-table @ search-wordlist
 	assert( dup 0<> )
 	drop execute if
