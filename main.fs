@@ -1,4 +1,5 @@
 require ast.fs
+require lexer.fs
 require lib.fs
 require parser.fs
 
@@ -8,28 +9,33 @@ require parser.fs
 		read-cmdline while
 			\ Save address of readline string, we have to free it later.
 			2dup >r >r
-			tokenize-cmdline
 			0 >errno
-			>r r@
-			['] parse-cmdline catch if
-				r> 2 * 1+ cleanup-stack
-				errno> if
-					errno> strerror type-err cr-err
-				else
-					s" Syntax error" type-err cr-err
-				endif
+			parse-special-regular ['] lstate-init catch if
+				drop
+				errno> strerror type-err cr-err
 			else
-				r> drop
-				\ Save ast for deletion
-				>r r@
-				over swap ['] ast-exec catch if 
-					2drop
-					errno> strerror type-err cr-err
+				dup >r
+				['] parse-cmdline ['] lex catch
+				r> lstate-free
+				if
+					2drop 2drop
+					errno> if
+						errno> strerror type-err cr-err
+					else
+						s" Syntax error" type-err cr-err
+					endif
 				else
-					nip
+					\ Save ast for deletion
+					dup >r
+					over swap ['] ast-exec catch
+					r> ast-free
+					if
+						2drop
+						errno> strerror type-err cr-err
+					else
+						nip
+					endif
 				endif
-				\ Free ast
-				r> ast-free
 			endif
 			\ Free readline string.
 			r> r> free-cmdline

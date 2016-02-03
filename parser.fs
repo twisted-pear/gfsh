@@ -1,307 +1,148 @@
 require ast.fs
-require variables.fs
+require parser-common.fs
+require token.fs
 
-struct
-	cell% field pstate-ast
-	cell% field pstate-empty
-	cell% field pstate-expecting
-	cell% field pstate-background
-	cell% field pstate-depth
-	cell% field pstate-special-table
-end-struct pstate%
+: parser-cleanup ( a-addr -- )
+	pstate-data @ ast-free ;
 
-create ps pstate% %allot drop 
-0 ps pstate-ast !
--1 ps pstate-empty !
-0 ps pstate-expecting !
-0 ps pstate-background !
-0 ps pstate-depth !
+: ast-trim ( pstate -- )
+	assert( dup pstate-closed @ over pstate-unclosed-ok @ or )
+	dup pstate-closed @ 0= if
+		dup pstate-data @
+		assert( dup ast-left @ 0<> )
+		assert( dup ast-right @ 0= )
+		assert( dup ast-sub @ 0= )
+		dup ast-left @
+		over 0 swap ast-left !
+		swap ast-free
+		over pstate-data !
+	endif drop ;
 
-: pstate-dump ( -- a1 a2... u )
-	ps pstate-ast @
-	ps pstate-empty @
-	ps pstate-expecting @
-	ps pstate-background @
-	ps pstate-depth @
-	ps pstate-special-table @
-	6 ;
-
-: pstate-restore ( a1 a2... u )
-	assert( dup 6 = )
+: parse-end ( pstate token -- pstate )
+	assert( dup token-type @ token-type-end = )
 	drop
-	ps pstate-special-table !
-	ps pstate-depth !
-	ps pstate-background !
-	ps pstate-expecting !
-	ps pstate-empty !
-	ps pstate-ast ! ;
-
-defer parse-cmdline ( c-addr1 u1 c-addr2 u2... u -- a-addr )
-
-: create-ast-leaf-noop ( 0 -- a-addr )
-	assert( dup 0= )
-	drop
-	ps pstate-background @ throw
-	ast-init dup ['] ast-leaf-noop swap ast-set-func ;
-
-: create-ast-leaf-run ( c-addr1 u1 c-addr2 u2... u -- a-addr )
-	assert( dup 0<> )
-	dup 2* 1+
-	ast-init >r r@ ast-read-params
-	ps pstate-background @ r@ ast-set-background
-	r> dup ['] ast-leaf-run swap ast-set-func
-	0 ps pstate-background ! ;
-
-: create-ast-{} ( c-addr1 u1 c-addr2 u2... u -- a-addr )
-	assert( dup 0<> )
-	ast-init >r r@ ['] ast-{} swap ast-set-func
-	ps pstate-background @ r@ ast-set-background
-	0 ps pstate-background !
-	pstate-dump dup begin
-		dup 0> while rot >r 1-
-	repeat drop >r
-	['] parse-cmdline catch
-	r> dup begin
-		dup 0> while r> rot rot 1-
-	repeat drop pstate-restore
-	if
-		r> ast-free
-		1 throw
+	dup pstate-closed @ 0= over pstate-unclosed-ok @ 0= and throw
+	dup pstate-next @ 0<> throw
+	-1 over pstate-done !
+	dup pstate-data @ 0= if
+		ast-init ['] ast-leaf-noop over ast-set-func
+		over pstate-data !
+		-1 over pstate-closed !
 	endif
-	r@ ast-set-sub
-	r> ;
+	dup ast-trim ;
 
-: create-ast-assign ( c-addr1 u1 c-addr2 u2 -- a-addr )
-	assert( dup 82 <= ) \ This limit is imposed by pad.
-	ast-init >r
-	['] ast-leaf-assign r@ ast-set-func
-	ps pstate-background @ r@ ast-set-background
-	4 r@ ast-read-params
-	0 ps pstate-background !
-	r> ;
-
-: parse-assign ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	rot 0<> throw
-	ps pstate-empty @ ps pstate-expecting @ or 0= throw
-	2dup s" =" search
-	assert( dup )
-	drop
-	assert( 2over 2over drop nip <> )
-	dup >r 1- swap char+ swap
-	2swap r> -
-	dup 82 > throw \ This limit is imposed by pad.
-	create-ast-assign
-	ps pstate-ast
-	ps pstate-expecting @ if
-		assert( ps pstate-empty @ 0= )
-		@ ast-left
-		0 ps pstate-expecting !
-	endif !
-	0 ps pstate-empty !
-	0 ;
-
-: create-ast-conn ( xt -- a-addr )
-	ast-init swap over ast-set-func ;
-
-: parse-connector ( c-addr1 u1 c-addr2 u2... u xt -- c-addr1 u1 c-addr2 u2... u )
-	>r
-	dup 0= if
-		ps pstate-empty @ if
-			r> drop
-			exit
-		endif
-		ps pstate-expecting @ throw
-		r> create-ast-conn
-		dup ps pstate-ast @ swap ast-set-right
-		ps pstate-ast !
-		-1 ps pstate-expecting !
+: parse-str ( pstate token -- pstate )
+	assert( dup token-type @ token-type-str = )
+	over pstate-closed @ throw
+	over pstate-closed -1 swap !
+	dup token-str-addr @ swap token-str-len @
+	ast-init dup >r ast-set-str
+	r> ['] ast-leaf-run over ast-set-func
+	over pstate-data @ 0= if
+		over pstate-data !
 	else
-		create-ast-leaf-run
-		ps pstate-empty @ if
-			ps pstate-ast !
-		else
-			ps pstate-expecting @ 0= if 
-				ast-free
-				1 throw
-			endif
-			ps pstate-ast @ ast-set-left
-		endif
-		r> create-ast-conn
-		dup ps pstate-ast @ swap ast-set-right
-		ps pstate-ast !
-		-1 ps pstate-expecting !
-		0 ps pstate-empty !
-		0
+		over pstate-data @
+		assert( dup ast-right @ 0= )
+		ast-right !
 	endif ;
 
-table constant parse-special-regular
-table constant parse-special-braces
+: parse-conn ( pstate token xt -- pstate )
+	assert( over token-type @
+		dup token-type-seq = swap
+		dup token-type-bg = swap
+		dup token-type-pipe = swap
+		dup token-type-and = swap
+		dup token-type-or = swap
+		drop or or or or )
+	>r drop
+	dup pstate-closed @ 0= throw
+	0 over pstate-closed !
+	0 over pstate-unclosed-ok !
+	ast-init r> over ast-set-func
+	over pstate-data @ over ast-set-left
+	over pstate-data ! ;
 
-get-current parse-special-regular set-current
+: parse-braces-open ( pstate token -- pstate )
+	assert( dup token-type @ token-type-braces-open = )
+	drop
+	dup pstate-closed @ throw
+	pstate-init ;
 
-: assignment? ( c-addr u -- f )
-	over >r
-	s" =" search
-	rot rot drop
-	r> <> and ;
-
-: variable? ( c-addr u -- f )
-	var-access? ;
-
-: ; ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	2drop
-	['] ast-conn-seq parse-connector ;
-
-: & ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	2drop
-	['] ast-conn-seq parse-connector
-	-1 ps pstate-background ! ;
-
-: | ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	2drop
-	dup 0= if 
-		ps pstate-empty @ throw
+: parse-braces-close ( pstate token -- pstate )
+	assert( dup token-type @ token-type-braces-close = )
+	drop
+	dup pstate-closed @ 0= over pstate-unclosed-ok @ 0= and throw
+	dup pstate-next @ 0= throw
+	dup pstate-data @ 0= throw
+	assert( dup pstate-next @ pstate-closed @ 0= )
+	dup ast-trim
+	ast-init ['] ast-{} over ast-set-func
+	over pstate-data @ over ast-set-sub
+	over pstate-next @ rot free drop swap
+	over pstate-data @ 0= if
+		over pstate-data !
+	else
+		over pstate-data @ ast-right !
 	endif
-	['] ast-conn-pipe parse-connector
-	-1 ps pstate-background ! ;
+	-1 over pstate-closed ! ;
 
-: && ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	2drop
-	dup 0= if 
-		ps pstate-empty @ throw
+: parser-token-dispatcher ( pstate token -- pstate )
+	dup token-type @
+	case
+	token-type-end of ( pstate token -- pstate )
+		\ s"  END " type
+		parse-end
+	endof
+	token-type-str of ( pstate token -- pstate )
+		\ s" >" type
+		\ dup token-str-addr @
+		\ over token-str-len @
+		\ type
+		\ s" <" type
+		parse-str
+	endof
+	token-type-seq of ( pstate token -- pstate )
+		\ s"  SEQ " type
+		['] ast-conn-seq parse-conn
+		-1 over pstate-unclosed-ok !
+	endof
+	token-type-bg of ( pstate token -- pstate )
+		\ s"  BG " type
+		['] ast-conn-seq parse-conn
+		-1 over pstate-unclosed-ok !
+		dup pstate-data @ ast-pred -1 swap ast-set-background
+	endof
+	token-type-pipe of ( pstate token -- pstate )
+		\ s"  PIPE " type
+		['] ast-conn-pipe parse-conn
+	endof
+	token-type-and of ( pstate token -- pstate )
+		\ s"  AND " type
+		['] ast-conn-and parse-conn
+	endof
+	token-type-or of ( pstate token -- pstate )
+		\ s"  OR " type
+		['] ast-conn-or parse-conn
+	endof
+	token-type-braces-open of ( pstate token -- pstate )
+		\ s"  OPEN " type
+		parse-braces-open
+	endof
+	token-type-braces-close of ( pstate token -- pstate )
+		\ s"  CLOSE " type
+		parse-braces-close
+	endof
+	( pstate token n -- ) 1 throw
+	endcase ;
+
+: parse-cmdline ( pstate token -- pstate a-addr )
+	over 0= if
+		nip 0 pstate-init
+		['] parser-cleanup over pstate-cleanup !
+		swap
 	endif
-	['] ast-conn-and parse-connector ;
-
-: || ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	2drop
-	dup 0= if 
-		ps pstate-empty @ throw
-	endif
-	['] ast-conn-or parse-connector ;
-
-: { ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	1 throw ;
-
-: } ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	2drop
-	assert( ps pstate-depth @ 0= )
-	dup 0<> if
+	over pstate-done @ if
 		1 throw
 	endif
-	assert( ps pstate-empty @ ps pstate-expecting @ or )
-	1 ps pstate-depth !
-	parse-special-braces ps pstate-special-table ! ;
-
-parse-special-braces set-current
-
-: assignment? ( c-addr u -- f )
-	2drop
-	0 ;
-
-: variable? ( c-addr u -- f )
-	2drop
-	0 ;
-
-: { ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	assert( ps pstate-depth @ 0> )
-	ps pstate-depth @ 1- dup ps pstate-depth !
-	0> if
-		rot 1+
-		exit
-	endif
-	2drop
-	dup 0= throw
-	assert( ps pstate-empty @ ps pstate-expecting @ or )
-	parse-special-regular ps pstate-special-table !
-	create-ast-{}
-	ps pstate-empty @ if
-		ps pstate-ast !
-	else
-		assert( ps pstate-expecting @ )
-		ps pstate-ast @ ast-set-left
-	endif
-	0 ps pstate-expecting !
-	0 ps pstate-empty !
-	0 ;
-
-: } ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	rot 1+
-	ps pstate-depth @ 1+ ps pstate-depth ! ;
-
-set-current
-
-parse-special-regular ps pstate-special-table !
-
-: clear-parser-state ( -- )
-	0 ps pstate-ast !
-	-1 ps pstate-empty !
-	0 ps pstate-expecting !
-	0 ps pstate-background !
-	0 ps pstate-depth !
-	parse-special-regular ps pstate-special-table ! ;
-
-: parse-token ( c-addr1 u1 c-addr2 u2... u c-addrN uN -- c-addr1 u1 c-addr2 u2... u )
-	2dup s" assignment?" ps pstate-special-table @ search-wordlist
-	assert( dup 0<> )
-	drop execute if
-		parse-assign
-		exit
-	endif
-	2dup s" variable?" ps pstate-special-table @ search-wordlist
-	assert( dup 0<> )
-	drop execute if
-		rot 1+
-		\ insert marker for AST
-		0 0 rot 1+
-		exit
-	endif
-	2dup ps pstate-special-table @ search-wordlist 0= if
-		\ no special char
-		rot 1+
-	else
-		execute
-	endif ;
-
-: parse-cmdline-recursive ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
-	dup 0= if
-		exit
-	endif
-	rot rot >r >r 1- recurse
-	r> r> parse-token ;
-
-: parse-cmdline-tail ( c-addr1 u1 c-addr2 u2... u -- a-addr )
-	ps pstate-depth @ throw
-	ps pstate-empty @ if
-		assert( ps pstate-expecting @ 0= )
-		dup 0> if
-			create-ast-leaf-run
-		else
-			create-ast-leaf-noop
-		endif
-		ps pstate-ast !
-		0 ps pstate-empty !
-	else
-		ps pstate-expecting @ if
-			dup 0= throw \ Expecting another command but nothing left.
-			create-ast-leaf-run
-			ps pstate-ast @ ast-set-left
-		else
-			throw
-		endif
-	endif
-	ps pstate-ast @ ;
-
-: parse-cmdline-catch ( c-addr1 u1 c-addr2 u2... u -- a-addr )
-	parse-cmdline-recursive
-	parse-cmdline-tail ;
-
-: parse-cmdline-real ( c-addr1 u1 c-addr2 u2... u -- a-addr )
-	clear-parser-state
-	['] parse-cmdline-catch catch if
-		ps pstate-empty @ 0= if
-			ps pstate-ast @ ast-free
-		endif
-		1 throw
-	endif ;
-
-' parse-cmdline-real is parse-cmdline
+	parser-token-dispatcher
+	dup pstate-data @ ;

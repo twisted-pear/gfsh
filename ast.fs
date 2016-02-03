@@ -1,3 +1,5 @@
+require expander.fs
+require lexer.fs
 require lib.fs
 require fd.fs
 require pipe.fs
@@ -15,6 +17,8 @@ struct
 	cell% field ast-stderr
 	cell% field ast-n-params
 	cell% field ast-params
+	cell% field ast-str-addr
+	cell% field ast-str-len
 end-struct ast%
 
 : ast-init ( -- a-addr )
@@ -61,6 +65,10 @@ end-struct ast%
 	0 rot u-do
 		dup i 1- cells + @ swap
 	1 -loop drop ;
+
+: ast-set-str ( c-addr u node -- )
+	swap over ast-str-len !
+	ast-str-addr ! ;
 
 : ast-free ( a-addr -- )
 	dup 0= if
@@ -117,41 +125,32 @@ end-struct ast%
 		ast-exec
 	endif ;
 
-: replace-variables ( c-addr1 u1 c-addr2 u2... u -- c-addr1 u1 c-addr2 u2... u )
-	dup 0= if
+: ast-leaf-run ( n a-addr -- n )
+	>r drop
+	r@ ast-str-addr @
+	r@ ast-str-len @
+	expand-special-regular lstate-init
+	dup >r
+	['] expand-cmdline ['] lex catch
+	r> lstate-free
+	if 1 throw endif
+	dup >r
+	str-store-dump
+	r> r> swap >r >r
+	dup 0= if \ variable assignments only
+		drop r> drop
+		r> str-store-free
+		0
 		exit
 	endif
-	rot rot over 0= if
-		\ next string is a variable access
-		2drop 1-
-		assert( dup 0> )
-		rot rot
-		assert( 2dup var-access? )
-		var-load
-	endif
-	>r >r 1- recurse
-	r> r> rot 1+
-	;
-
-: ast-leaf-run ( n a-addr -- n )
-	>r drop r@
-	ast-dump-params
-	replace-variables
 	1- rot rot
 	r@ ast-stdin @ r@ ast-stdout @ r@ ast-stderr @
 	r> ast-background @
-	run ;
+	run
+	r> str-store-free ;
 
 : ast-leaf-noop ( n a-addr -- n )
 	drop ;
-
-: ast-leaf-assign ( n a-addr -- n )
-	nip ast-dump-params
-	s" $" pad place
-	pad +place
-	pad count
-	var-store
-	0 ;
 
 : ast-{} ( n a-addr -- n )
 	assert( dup ast-left @ 0= )

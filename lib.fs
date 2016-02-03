@@ -16,6 +16,12 @@ require cfuncs.fs
 : fork ( -- )
 	libc-fork dup 0< throw ;
 
+: chdir ( c-addr u -- )
+	>c-string dup >r
+	libc-chdir
+	r> free drop
+	throw ;
+
 : n>s ( n -- c-addr u )
 	dup >r abs s>d <# #s r> sign #> ;
 
@@ -30,6 +36,27 @@ require cfuncs.fs
 	else
 		drop
 	endif ;
+
+: alnum? ( c -- f )
+	>r
+	r@ s" A" drop c@ >=
+	r@ s" Z" drop c@ <=
+	and
+	r@ s" a" drop c@ >=
+	r@ s" z" drop c@ <=
+	and
+	r@ s" 0" drop c@ >=
+	r> s" 9" drop c@ <=
+	and
+	or or ;
+
+: extend-heap-str ( c-addr u c-addrE uE -- c-addrN uE+u )
+	2tuck swap drop over + ( c-addrE uE c-addr u uE+u -- )
+	dup >r swap >r ( c-addrE uE c-addr uE+u ; r: uE+u u -- )
+	resize throw r> \ Gforth specific if c-addr == 0.
+	over >r ( c-addrE uE c-addrN u ; r: uE+u c-addrN -- )
+	chars + swap move
+	r> r> ;
 
 128 constant max-prompt
 create prompt-buffer max-prompt chars allot
