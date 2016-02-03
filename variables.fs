@@ -22,9 +22,10 @@ table constant variables
 	endif
 	drop 0 ;
 
-: var-load ( c-addr u -- c-addr u )
+: var-load-from-list ( c-addr u wid -- c-addr u )
+	>r
 	2dup var-access? 0= throw
-	variables search-wordlist 0= if
+	r> search-wordlist 0= if
 		0 0
 		exit
 	endif
@@ -35,13 +36,15 @@ table constant variables
 	endif
 	count ;
 
-: var-store ( c-addr1 u1 c-addr2 u2 -- )
+: var-store-to-list ( c-addr1 u1 c-addr2 u2 wid -- )
+	>r
 	2dup var-access? 0= throw
 	2swap dup var-content-max-len > throw
 	dup 1+ chars allocate throw
-	dup >r
+	dup r> swap >r >r
 	place
-	2dup variables search-wordlist 0<> if
+	2dup r@ search-wordlist 0<> if
+		r> drop
 		dup execute @ free drop
 		r> swap execute !
 		2drop
@@ -51,7 +54,13 @@ table constant variables
 	get-current variables set-current
 	variable
 	set-current
-	variables search-wordlist 0= if
+	r> search-wordlist 0= if
 		assert( 0 )
 	endif
 	r> swap execute ! ;
+
+: var-load ( c-addr u -- c-addr u )
+	variables var-load-from-list ;
+
+: var-store ( c-addr1 u1 c-addr2 u2 -- )
+	variables var-store-to-list ;
