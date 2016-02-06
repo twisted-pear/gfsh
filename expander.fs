@@ -1,76 +1,57 @@
 require lib.fs
 require parser-common.fs
+require struct-array.fs
 require token.fs
 require variables.fs
 
-struct
-	cell% field str-store-data
-	cell% field str-store-size
-end-struct str-store%
-
 \ FIXME: We're misusing pstate-unclosed-ok to store our last variable assignment
 
-: str-store-last-addr ( a-addr -- a-addr )
-	assert( dup str-store-size @ 0<> )
-	dup str-store-data @ swap str-store-size @ 1- 2* cells + ;
-
-: str-store-get-last ( a-addr -- c-addr u )
-	assert( dup str-store-size @ 0<> )
-	str-store-last-addr dup cell+ swap @ swap @ ;
-
-: str-store-set-last ( c-addr u a-addr -- )
-	assert( dup str-store-size @ 0<> )
-	str-store-last-addr tuck cell+ ! ! ;
-
 : str-store-add-empty ( a-addr -- )
-	>r
-	r@ str-store-data @
-	r@ str-store-size @ 1+ 2* cells
-	resize throw \ Gforth specific if str-store-data == 0.
-	r@ str-store-data !
-	r@ str-store-size @ 1+ r@ str-store-size !
-	0 0 r> str-store-set-last ;
+	heap-str% %allot
+	0 over heap-str-data !
+	0 over heap-str-size !
+	swap ['] struct-array-append catch
+	heap-str% -1 * %allot drop
+	if
+		1 throw
+	endif ;
 
 : str-store-extend ( c-addr u a-addr -- )
-	assert( dup str-store-size @ 0<> )
-	>r
-	r@ str-store-get-last
-	2swap extend-heap-str
-	r> str-store-set-last ;
+	assert( dup struct-array-size @ 0<> )
+	dup struct-array-size @ 1- swap struct-array-i
+	heap-str-extend ;
 
 : str-store-take-first ( a-addr -- c-addr u )
-	assert( dup str-store-size @ 1 u<= )
-	dup str-store-size 0<> if
-		dup str-store-get-last
+	assert( dup struct-array-size @ 1 u<= )
+	dup struct-array-size @ 0<> if
+		dup >r
+		0 r@ struct-array-i
+		dup heap-str-data @
+		swap heap-str-size @
+		0 r> struct-array-delete
 	else
 		0 0
-	endif
-	rot str-store-size 0 swap ! ;
+	endif rot drop ;
 
-: str-store-dump ( a-addr -- )
-	>r
-	r@ str-store-size @
-	r@ str-store-data @
-	0 rot u-do
-		dup i 1- 2* cells +
-		dup cell+ @ swap @ swap
+: str-store-dump ( a-addr -- c-addr1 u2 c-addr2 u2... u )
+	0 over struct-array-size @ u-do
+		i 1- over struct-array-i
+		dup heap-str-data @
+		swap heap-str-size @
 		rot
-	1 -loop drop
-	r> str-store-size @ ;
+	1 -loop struct-array-size @ ;
 
 : str-store-init ( -- a-addr )
-	str-store% %allocate throw
-	dup str-store-data 0 swap !
-	dup str-store-size 0 swap ! ;
+	heap-str% struct-array-init ;
+
+: str-free ( _ a-addr -- )
+	nip heap-str-data @ free drop ;
 
 : str-store-free ( a-addr -- )
 	dup 0<> if
-		dup str-store-size @ 0 u+do
-			dup str-store-data @ i 2* cells + @ free drop
-		loop
-		dup str-store-data @ free drop
+		['] str-free over struct-array-foreach
 	endif
-	free drop ;
+	struct-array-free ;
 
 create assign-buffer var-name-max-len 2 + chars allot
 
@@ -125,7 +106,7 @@ create assign-buffer var-name-max-len 2 + chars allot
 	assert( dup token-type @ token-type-assign = )
 	assert( over pstate-unclosed-ok @ )
 	assert( over pstate-data @ 0<> )
-	assert( over pstate-data @ str-store-size @ 0= )
+	assert( over pstate-data @ struct-array-size @ 0= )
 	dup token-str-addr @ swap token-str-len @
 	dup var-name-max-len > throw
 	assign-buffer place

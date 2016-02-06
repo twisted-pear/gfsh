@@ -50,6 +50,11 @@ require cfuncs.fs
 	and
 	or or ;
 
+struct
+	cell% field heap-str-data
+	cell% field heap-str-size
+end-struct heap-str%
+
 : extend-heap-str ( c-addr u c-addrE uE -- c-addrN uE+u )
 	2tuck swap drop over + ( c-addrE uE c-addr u uE+u -- )
 	dup >r swap >r ( c-addrE uE c-addr uE+u ; r: uE+u u -- )
@@ -57,6 +62,14 @@ require cfuncs.fs
 	over >r ( c-addrE uE c-addrN u ; r: uE+u c-addrN -- )
 	chars + swap move
 	r> r> ;
+
+: heap-str-extend ( c-addr u a-addr -- )
+	>r
+	r@ heap-str-data @
+	r@ heap-str-size @
+	2swap extend-heap-str
+	r@ heap-str-size !
+	r> heap-str-data ! ;
 
 128 constant max-prompt
 create prompt-buffer max-prompt chars allot
