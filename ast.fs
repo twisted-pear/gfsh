@@ -96,15 +96,15 @@ end-struct ast%
 			ast-left @
 	repeat drop ;
 
-\ TODO: figure out when up call this.
 : update-$? ( n -- )
 	n>s s" ?" var-store ;
 
 : ast-exec ( n a-addr -- n )
-	dup ast-func @ execute
-	dup update-$? ;
+	over update-$?
+	dup ast-func @ execute ;
 
 : ast-exec-bg ( n a-addr -- n )
+	over update-$?
 	fork 0= if
 		\ child
 		dup ast-func @ catch if
@@ -116,7 +116,6 @@ end-struct ast%
 	else
 		\ parent
 		2drop EXIT_SUCCESS
-		dup update-$?
 	endif ;
 
 : ast-exec-bg? ( n a-addr f -- n )
