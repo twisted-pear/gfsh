@@ -96,8 +96,9 @@ end-struct ast%
 			ast-left @
 	repeat drop ;
 
+\ TODO: figure out when up call this.
 : update-$? ( n -- )
-	n>s s" $?" var-store ;
+	n>s s" ?" var-store ;
 
 : ast-exec ( n a-addr -- n )
 	dup ast-func @ execute

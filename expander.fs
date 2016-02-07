@@ -5,6 +5,7 @@ require token.fs
 require variables.fs
 
 \ FIXME: We're misusing pstate-unclosed-ok to store our last variable assignment
+\ TODO: Use non-global assignment buffer
 
 : str-store-add-empty ( a-addr -- )
 	heap-str% %allot
@@ -44,12 +45,9 @@ require variables.fs
 : str-store-init ( -- a-addr )
 	heap-str% struct-array-init ;
 
-: str-free ( _ a-addr -- )
-	nip heap-str-data @ free drop ;
-
 : str-store-free ( a-addr -- )
 	dup 0<> if
-		['] str-free over struct-array-foreach
+		['] heap-str-free over struct-array-foreach
 	endif
 	struct-array-free ;
 
@@ -65,7 +63,7 @@ create assign-buffer var-name-max-len 2 + chars allot
 	-1 over pstate-done !
 	dup pstate-unclosed-ok @ 0= if
 		dup pstate-data @ str-store-take-first
-		assign-buffer count >var-access var-store 
+		assign-buffer count var-store 
 		-1 over pstate-unclosed-ok !
 	endif ;
 
@@ -87,7 +85,7 @@ create assign-buffer var-name-max-len 2 + chars allot
 	-1 over pstate-closed !
 	dup pstate-unclosed-ok @ 0= if
 		dup pstate-data @ str-store-take-first
-		assign-buffer count >var-access var-store 
+		assign-buffer count var-store 
 		-1 over pstate-unclosed-ok !
 	endif ;
 
@@ -99,7 +97,7 @@ create assign-buffer var-name-max-len 2 + chars allot
 		dup pstate-data @ str-store-add-empty
 		0 over pstate-closed !
 	endif
-	>r >var-access var-load r@ pstate-data @ str-store-extend
+	>r var-load r@ pstate-data @ str-store-extend
 	r> ;
 
 : expand-assign ( pstate token -- pstate )

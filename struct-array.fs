@@ -1,3 +1,5 @@
+require lib.fs
+
 struct
 	double% field struct-array-type
 	cell% field struct-array-size
@@ -73,5 +75,10 @@ end-struct struct-array%
 
 : struct-array-foreach ( xt arr -- )
 	dup struct-array-size @ 0 u+do
-		2dup i swap struct-array-i i swap rot execute
+		2dup i swap struct-array-i swap execute
 	loop 2drop ;
+
+: struct-array-foreach-with-data ( data xt arr -- )
+	dup struct-array-size @ 0 u+do
+		3dup i swap struct-array-i swap execute
+	loop 3drop ;

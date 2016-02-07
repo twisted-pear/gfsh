@@ -58,7 +58,7 @@ end-struct heap-str%
 : extend-heap-str ( c-addr u c-addrE uE -- c-addrN uE+u )
 	2tuck swap drop over + ( c-addrE uE c-addr u uE+u -- )
 	dup >r swap >r ( c-addrE uE c-addr uE+u ; r: uE+u u -- )
-	resize throw r> \ Gforth specific if c-addr == 0.
+	chars resize throw r> \ Gforth specific if c-addr == 0.
 	over >r ( c-addrE uE c-addrN u ; r: uE+u c-addrN -- )
 	chars + swap move
 	r> r> ;
@@ -70,6 +70,17 @@ end-struct heap-str%
 	2swap extend-heap-str
 	r@ heap-str-size !
 	r> heap-str-data ! ;
+
+: heap-str-free ( a-addr -- )
+	heap-str-data @ free drop ;
+
+\ TODO: pull these into their own file
+
+: 3dup ( a b c -- a b c a b c )
+	0 2over rot drop 2over swap drop ;
+
+: 3drop ( a b c -- )
+	2drop drop ;
 
 128 constant max-prompt
 create prompt-buffer max-prompt chars allot
