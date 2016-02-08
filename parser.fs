@@ -2,11 +2,14 @@ require ast.fs
 require parser-common.fs
 require token.fs
 
+\ pstate-special1 indicates if it is ok to terminate in "unclosed" state.
+\ pstate-special2 is unused.
+
 : parser-cleanup ( a-addr -- )
 	pstate-data @ ast-free ;
 
 : ast-trim ( pstate -- )
-	assert( dup pstate-closed @ over pstate-unclosed-ok @ or )
+	assert( dup pstate-closed @ over pstate-special1 @ or )
 	dup pstate-closed @ 0= if
 		dup pstate-data @
 		assert( dup ast-left @ 0<> )
@@ -21,7 +24,7 @@ require token.fs
 : parse-end ( pstate token -- pstate )
 	assert( dup token-type @ token-type-end = )
 	drop
-	dup pstate-closed @ 0= over pstate-unclosed-ok @ 0= and throw
+	dup pstate-closed @ 0= over pstate-special1 @ 0= and throw
 	dup pstate-next @ 0<> throw
 	-1 over pstate-done !
 	dup pstate-data @ 0= if
@@ -57,7 +60,7 @@ require token.fs
 	>r drop
 	dup pstate-closed @ 0= throw
 	0 over pstate-closed !
-	0 over pstate-unclosed-ok !
+	0 over pstate-special1 !
 	ast-init r> over ast-set-func
 	over pstate-data @ over ast-set-left
 	over pstate-data ! ;
@@ -71,7 +74,7 @@ require token.fs
 : parse-braces-close ( pstate token -- pstate )
 	assert( dup token-type @ token-type-braces-close = )
 	drop
-	dup pstate-closed @ 0= over pstate-unclosed-ok @ 0= and throw
+	dup pstate-closed @ 0= over pstate-special1 @ 0= and throw
 	dup pstate-next @ 0= throw
 	dup pstate-data @ 0= throw
 	assert( dup pstate-next @ pstate-closed @ 0= )
@@ -104,12 +107,12 @@ require token.fs
 	token-type-seq of ( pstate token -- pstate )
 		\ s"  SEQ " type
 		['] ast-conn-seq parse-conn
-		-1 over pstate-unclosed-ok !
+		-1 over pstate-special1 !
 	endof
 	token-type-bg of ( pstate token -- pstate )
 		\ s"  BG " type
 		['] ast-conn-seq parse-conn
-		-1 over pstate-unclosed-ok !
+		-1 over pstate-special1 !
 		dup pstate-data @ ast-pred -1 swap ast-set-background
 	endof
 	token-type-pipe of ( pstate token -- pstate )
@@ -139,6 +142,7 @@ require token.fs
 	over 0= if
 		nip 0 pstate-init
 		['] parser-cleanup over pstate-cleanup !
+		-1 over pstate-special1 !
 		swap
 	endif
 	over pstate-done @ if

@@ -4,8 +4,8 @@ require struct-array.fs
 require token.fs
 require variables.fs
 
-\ FIXME: We're misusing pstate-unclosed-ok to store our last variable assignment
-\ TODO: Use non-global assignment buffer
+\ pstate-special1 holds the address of a variable name for assignment.
+\ pstate-special2 holds the length of a variable name for assignment.
 
 : str-store-add-empty ( a-addr -- )
 	heap-str% %allot
@@ -51,8 +51,6 @@ require variables.fs
 	endif
 	struct-array-free ;
 
-create assign-buffer var-name-max-len 2 + chars allot
-
 : expander-cleanup ( a-addr -- )
 	pstate-data @ str-store-free ;
 
@@ -61,10 +59,13 @@ create assign-buffer var-name-max-len 2 + chars allot
 	drop
 	assert( dup pstate-data @ 0<> )
 	-1 over pstate-done !
-	dup pstate-unclosed-ok @ 0= if
-		dup pstate-data @ str-store-take-first
-		assign-buffer count var-store 
-		-1 over pstate-unclosed-ok !
+	dup pstate-special2 @ 0<> if
+		>r
+		r@ pstate-data @ str-store-take-first
+		r@ pstate-special1 @ r@ pstate-special2 @
+		var-store
+		0 r@ pstate-special1 ! 0 r@ pstate-special2 !
+		r>
 	endif ;
 
 : expand-str ( pstate token -- pstate )
@@ -83,10 +84,13 @@ create assign-buffer var-name-max-len 2 + chars allot
 	assert( over pstate-data @ 0<> )
 	drop
 	-1 over pstate-closed !
-	dup pstate-unclosed-ok @ 0= if
-		dup pstate-data @ str-store-take-first
-		assign-buffer count var-store 
-		-1 over pstate-unclosed-ok !
+	dup pstate-special2 @ 0<> if
+		>r
+		r@ pstate-data @ str-store-take-first
+		r@ pstate-special1 @ r@ pstate-special2 @
+		var-store
+		0 r@ pstate-special1 ! 0 r@ pstate-special2 !
+		r>
 	endif ;
 
 : expand-var ( pstate token -- pstate )
@@ -102,13 +106,14 @@ create assign-buffer var-name-max-len 2 + chars allot
 
 : expand-assign ( pstate token -- pstate )
 	assert( dup token-type @ token-type-assign = )
-	assert( over pstate-unclosed-ok @ )
+	assert( over pstate-special2 @ 0= )
 	assert( over pstate-data @ 0<> )
 	assert( over pstate-data @ struct-array-size @ 0= )
 	dup token-str-addr @ swap token-str-len @
-	dup var-name-max-len > throw
-	assign-buffer place
-	0 over pstate-unclosed-ok ! ;
+	rot >r
+	r@ pstate-special2 !
+	r@ pstate-special1 !
+	r> ;
 
 : expander-token-dispatcher ( pstate token -- pstate )
 	dup token-type @

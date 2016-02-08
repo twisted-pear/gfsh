@@ -3,7 +3,8 @@ struct
 	cell% field pstate-data
 	cell% field pstate-cleanup
 	cell% field pstate-closed
-	cell% field pstate-unclosed-ok
+	cell% field pstate-special1
+	cell% field pstate-special2
 	cell% field pstate-done
 end-struct pstate%
 
@@ -13,7 +14,8 @@ end-struct pstate%
 	dup pstate-data 0 swap !
 	dup pstate-cleanup 0 swap !
 	dup pstate-closed 0 swap !
-	dup pstate-unclosed-ok -1 swap !
+	dup pstate-special1 0 swap !
+	dup pstate-special2 0 swap !
 	dup pstate-done 0 swap ! ;
 
 : pstate-drop ( a-addr -- )
