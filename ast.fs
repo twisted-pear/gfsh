@@ -129,20 +129,28 @@ end-struct ast%
 	>r drop
 	r@ ast-str-addr @
 	r@ ast-str-len @
+	0 0 var-list-init var-push
 	expand-special-regular lstate-init
 	dup >r
 	['] expand-cmdline ['] lex catch
 	r> lstate-free
-	if 1 throw endif
+	if
+		var-pop var-list-free
+		1 throw
+	endif
 	dup >r
 	str-store-dump
 	r> r> swap >r >r
 	dup 0= if \ variable assignments only
 		drop r> drop
 		r> str-store-free
+		var-pop dup ['] var-collapse catch
+		swap var-list-free
+		throw
 		0
 		exit
 	endif
+	var-pop var-list-free
 	1- rot rot
 	r@ ast-stdin @ r@ ast-stdout @ r@ ast-stderr @
 	r> ast-background @

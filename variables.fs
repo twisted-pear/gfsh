@@ -133,28 +133,57 @@ end-struct var-list%
 		>r 3drop r> var-set
 	endif ;
 
-: var-list-get ( c-addrN uN list -- c-addrV uV )
+: var-list-get ( c-addrN uN list -- c-addrV uV -1 | 0 )
 	assert( dup var-list-vars @ 0<> )
 	var-list-find dup 0= if
-		drop 0 0
+		drop 0
 	else
-		var-get
+		var-get -1
 	endif ;
+
+: var-copy-to-list ( list var -- )
+	swap >r
+	dup var-get
+	rot var-get-name
+	r> var-list-put ;
 
 : var-list-merge ( listS listD -- )
 	assert( dup var-list-vars @ 0<> )
 	assert( over var-list-vars @ 0<> )
-	\ TODO
-	;
+	swap var-list-vars @ ['] var-copy-to-list swap
+	struct-array-foreach-with-data ;
 
 table 0 var-list-init constant variables-main
 
-82 constant var-name-max-len \ <= 82 because we're using pad
+variable variables-head
+variables-main variables-head !
 
-\ TODO: allow multiple chained variable tables
+: var-push ( list -- )
+	variables-head @ over var-list-next !
+	variables-head ! ;
+
+: var-pop ( -- list )
+	variables-head @ var-list-next @
+	assert( dup 0<> )
+	variables-head @
+	swap variables-head ! ;
+
+: var-collapse ( list -- )
+	variables-head @ var-list-merge ;
 
 : var-load ( c-addr u -- c-addr u )
-	variables-main var-list-get ;
+	variables-head @
+	begin
+		3dup var-list-get 0= while
+			var-list-next @
+			dup 0= if
+				\ not found
+				3drop 0 0
+				exit
+			endif
+	repeat
+	\ found
+	>r >r 3drop r> r> ;
 
 : var-store ( c-addr1 u1 c-addr2 u2 -- )
-	variables-main var-list-put ;
+	variables-head @ var-list-put ;
