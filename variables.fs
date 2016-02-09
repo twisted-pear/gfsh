@@ -46,10 +46,9 @@ end-struct var-list%
 	var-list% %allocate throw >r
 	r@ var-list-next !
 	r@ var-list-table !
-	var% ['] struct-array-init catch if
+	var% ['] struct-array-init catch dup if
 		r> free drop
-		1 throw
-	endif
+	endif throw
 	r@ var-list-vars !
 	r> ;
 
@@ -115,9 +114,7 @@ end-struct var-list%
 	r@ var-set
 	r> r@ var-list-vars @ ['] struct-array-append catch
 	var% -1 * %allot drop
-	if
-		1 throw
-	endif
+	throw
 	r> dup var-list-table @ 0<> if
 		dup var-list-table @ swap var-list-vars @ ['] var-link-from-table swap
 		struct-array-foreach-with-data

@@ -13,9 +13,7 @@ require variables.fs
 	0 over heap-str-size !
 	swap ['] struct-array-append catch
 	heap-str% -1 * %allot drop
-	if
-		1 throw
-	endif ;
+	throw ;
 
 : str-store-extend ( c-addr u a-addr -- )
 	assert( dup struct-array-size @ 0<> )
@@ -150,7 +148,7 @@ require variables.fs
 		\ s" <" type
 		expand-assign
 	endof
-	( pstate token n -- ) 1 throw
+	( pstate token n -- ) assert( 0 )
 	endcase ;
 
 : expand-cmdline ( pstate token -- pstate a-addr )
@@ -158,15 +156,16 @@ require variables.fs
 		nip 0 pstate-init
 		['] expander-cleanup over pstate-cleanup !
 		-1 over pstate-closed !
-		['] str-store-init catch if
+		['] str-store-init catch dup if
+			>r
 			pstate-free
-			1 throw
-		endif
+			r>
+		endif throw
 		over pstate-data !
 		swap
 	endif
 	over pstate-done @ if
-		1 throw
+		assert( 0 )
 	endif
 	expander-token-dispatcher
 	dup pstate-data @ ;

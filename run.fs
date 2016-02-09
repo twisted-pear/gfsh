@@ -27,10 +27,9 @@ require builtins.fs
 
 : init-argv ( c-addr1 u1 c-addr2 u2... u -- a-addr )
 	dup alloc-argv >r r@ swap
-	['] store-args catch if
+	['] store-args catch dup if
 		r> free-argv
-		1 throw
-	endif r> ;
+	endif throw r> ;
 
 : consume-argv ( c-addr1 u1 c-addr2 u2... u -- )
 	dup 0> if
@@ -44,7 +43,7 @@ require builtins.fs
 	init-argv
 	dup dup @ swap libc-execvp swap
 	free-argv
-	drop 1 throw ;
+	drop errno> throw ;
 
 \ This must not throw ever, catch all errors within.
 : run-program ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN f -- n )

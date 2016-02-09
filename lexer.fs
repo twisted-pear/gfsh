@@ -79,12 +79,13 @@ table constant expand-special-regular
 : lex-end ( c-addr u lstate -- c-addr u token1 token2... uT )
 	assert( over 0= )
 	lex-create-token-if-str
-	token-type-end ['] token-init catch if
+	token-type-end ['] token-init catch dup if
+		>r
 		drop if
 			token-free
 		endif
-		1 throw
-	endif swap 1+ ;
+		r>
+	endif throw swap 1+ ;
 
 : lex-conn-char ( c-addr u lstate n -- c-addr u token1 token2... uT )
 	>r
@@ -92,12 +93,13 @@ table constant expand-special-regular
 	dup 2over rot >r >r >r
 	lex-create-token-if-str
 	r> r> r> lex-begin
-	r> ['] token-init catch if
+	r> ['] token-init catch dup if
+		>r
 		drop if
 			token-free
 		endif
-		1 throw
-	endif swap 1+ ;
+		r>
+	endif throw swap 1+ ;
 
 : lex-conn-char-dual ( c-addr u lstate n n -- c-addr u token1 token2... uT )
 	>r >r
@@ -117,12 +119,13 @@ table constant expand-special-regular
 : lex-sep-char ( c-addr u lstate -- c-addr u token1 token2... uT )
 	rot rot 1 /string
 	rot dup 2over rot >r >r >r lex-create-token-if-str
-	token-type-sep ['] token-init catch if
+	token-type-sep ['] token-init catch dup if
+		>r
 		drop if
 			token-free
 		endif
-		1 throw
-	endif swap 1+
+		r>
+	endif throw swap 1+
 	r> r> r@ lex-begin
 	r> dup lstate-open @ if
 		0 over lstate-started !
@@ -157,12 +160,13 @@ table constant expand-special-regular
 	/string rot
 	dup r> r> 2swap drop >r 2over r@ rot rot >r >r ( c-addr u c-addrV uV lstate ; r: lstate u c-addr -- )
 	rot rot >r >r lex-create-token-if-str
-	r> r> ['] create-var-token catch if
+	r> r> ['] create-var-token catch dup if
+		>r
 		2drop if
 			token-free
 		endif
-		1 throw
-	endif swap 1+
+		r>
+	endif throw swap 1+
 	r> r> r> lex-begin ;
 
 get-current parse-special-regular set-current
@@ -261,16 +265,13 @@ set-current
 		2drop 0
 		exit
 	endif
-	1- swap dup >r 2swap swap >r swap ['] call-parser catch if
+	1- swap dup >r 2swap swap >r swap ['] call-parser catch dup if
 		r> drop
 		r> token-free
-		1 throw
-	endif
+	endif throw
 	drop r> r> over >r catch
 	r> token-free
-	if
-		1 throw
-	endif ;
+	throw ;
 
 : lex-xt ( c-addr u lstate pstate xt xt -- c-addr u pstate a-addr )
 	rot rot >r >r
@@ -294,20 +295,18 @@ set-current
 			r> drop ( lstate xt c-addr u pstate ; r: -- )
 			>r over >r ( lstate xt c-addr u ; r: pstate c-addr -- )
 			2over r> r@ rot rot ( lstate xt c-addr u lstate pstate xt c-addr ; r: pstate -- )
-			['] lex-char catch if
+			['] lex-char catch dup if
 				r@ pstate-drop
 				r> pstate-free
-				1 throw
-			endif
+			endif throw
 	repeat
 	r> drop
 	drop >r
 	2swap over lex-end-func r@ rot rot ( c-addr u lstate pstate xt xt ; r: pstate -- )
-	['] lex-xt catch if
+	['] lex-xt catch dup if
 		r@ pstate-drop
 		r> pstate-free
-		1 throw
-	endif
+	endif throw
 	r> drop
 	2swap 2drop
 	swap pstate-free ;

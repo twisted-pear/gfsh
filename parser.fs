@@ -24,8 +24,12 @@ require token.fs
 : parse-end ( pstate token -- pstate )
 	assert( dup token-type @ token-type-end = )
 	drop
-	dup pstate-closed @ 0= over pstate-special1 @ 0= and throw
-	dup pstate-next @ 0<> throw
+	dup pstate-closed @ 0= over pstate-special1 @ 0= and if 
+		s" Syntax error" exception throw
+	endif
+	dup pstate-next @ 0<> if
+		s" Syntax error" exception throw
+	endif
 	-1 over pstate-done !
 	dup pstate-data @ 0= if
 		ast-init ['] ast-leaf-noop over ast-set-func
@@ -36,7 +40,9 @@ require token.fs
 
 : parse-str ( pstate token -- pstate )
 	assert( dup token-type @ token-type-str = )
-	over pstate-closed @ throw
+	over pstate-closed @ if
+		s" Syntax error" exception throw
+	endif
 	over pstate-closed -1 swap !
 	dup token-str-addr @ swap token-str-len @
 	ast-init dup >r ast-set-str
@@ -58,7 +64,9 @@ require token.fs
 		dup token-type-or = swap
 		drop or or or or )
 	>r drop
-	dup pstate-closed @ 0= throw
+	dup pstate-closed @ 0= if
+		s" Syntax error" exception throw
+	endif
 	0 over pstate-closed !
 	0 over pstate-special1 !
 	ast-init r> over ast-set-func
@@ -68,16 +76,24 @@ require token.fs
 : parse-braces-open ( pstate token -- pstate )
 	assert( dup token-type @ token-type-braces-open = )
 	drop
-	dup pstate-closed @ throw
+	dup pstate-closed @ if
+		s" Syntax error" exception throw
+	endif
 	pstate-init
 	['] parser-cleanup over pstate-cleanup ! ;
 
 : parse-braces-close ( pstate token -- pstate )
 	assert( dup token-type @ token-type-braces-close = )
 	drop
-	dup pstate-closed @ 0= over pstate-special1 @ 0= and throw
-	dup pstate-next @ 0= throw
-	dup pstate-data @ 0= throw
+	dup pstate-closed @ 0= over pstate-special1 @ 0= and if
+		s" Syntax error" exception throw
+	endif
+	dup pstate-next @ 0= if
+		s" Syntax error" exception throw
+	endif
+	dup pstate-data @ 0= if
+		s" Syntax error" exception throw
+	endif
 	assert( dup pstate-next @ pstate-closed @ 0= )
 	dup ast-trim
 	ast-init ['] ast-{} over ast-set-func
@@ -136,7 +152,7 @@ require token.fs
 		\ s"  CLOSE " type
 		parse-braces-close
 	endof
-	( pstate token n -- ) 1 throw
+	( pstate token n -- ) assert( 0 )
 	endcase ;
 
 : parse-cmdline ( pstate token -- pstate a-addr )
@@ -147,7 +163,7 @@ require token.fs
 		swap
 	endif
 	over pstate-done @ if
-		1 throw
+		assert( 0 )
 	endif
 	parser-token-dispatcher
 	dup pstate-data @ ;

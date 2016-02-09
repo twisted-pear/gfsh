@@ -14,13 +14,13 @@ require cfuncs.fs
 	libc-errno> ;
 
 : fork ( -- )
-	libc-fork dup 0< throw ;
+	libc-fork dup 0< errno> and throw ;
 
 : chdir ( c-addr u -- )
 	>c-string dup >r
 	libc-chdir
 	r> free drop
-	throw ;
+	0<> errno> and throw ;
 
 : n>s ( n -- c-addr u )
 	dup >r abs s>d <# #s r> sign #> ;

@@ -146,19 +146,19 @@ c-function libc-fdopen fdopen n a -- a
 \ FIXME this is absolutely not portable
 
 : >c-fd ( a -- n )
-	libc-fileno dup -1 = throw ;
+	libc-fileno dup -1 = libc-errno> and throw ;
 
 : c-fd>r ( n -- a )
 	s" r" >c-string >r r@
 	libc-fdopen
 	r> free drop
-	dup 0= throw ;
+	dup 0= libc-errno> and throw ;
 
 : c-fd>w ( n -- a )
 	s" w" >c-string >r r@
 	libc-fdopen
 	r> free drop
-	dup 0= throw ;
+	dup 0= libc-errno> and throw ;
 
 c-function libc-isatty isatty n -- n
 

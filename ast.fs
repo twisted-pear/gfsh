@@ -134,10 +134,9 @@ end-struct ast%
 	dup >r
 	['] expand-cmdline ['] lex catch
 	r> lstate-free
-	if
+	dup if
 		var-pop var-list-free
-		1 throw
-	endif
+	endif throw
 	dup >r
 	str-store-dump
 	r> r> swap >r >r
@@ -165,18 +164,18 @@ end-struct ast%
 	assert( dup ast-right @ 0= )
 	copy-std-fds >r >r >r
 	dup >r
-	r@ ast-stdin @ r@ ast-stdout @ r@ ast-stderr @ ['] replace-std-fds catch if
+	r@ ast-stdin @ r@ ast-stdout @ r@ ast-stderr @ ['] replace-std-fds catch dup if
 		r> drop
 		r> r> r> restore-std-fds
-		1 throw
-	endif
+	endif throw
 	ast-sub @
 	r> ast-background @ ['] ast-exec-bg? catch ( n 0 | x x x >0 -- )
 	r> r> r> restore-std-fds
-	if
+	dup if
+		>r
 		2drop drop
-		1 throw
-	endif ;
+		r>
+	endif throw ;
 
 : ast-conn-seq ( n a-addr -- n )
 	swap over ast-left @ ast-exec
@@ -187,21 +186,23 @@ end-struct ast%
 	ast-left @ ['] ast-exec catch ( n 0 | x x >0 -- )
 	r> close-file drop
 	r> swap
-	if
+	dup if
+		>r
 		close-file drop
 		2drop
-		1 throw
-	endif
+		r>
+	endif throw
 	drop ;
 
 : ast-conn-pipe-right ( n a-addr a a -- n )
 	drop >r
 	ast-right @ ['] ast-exec catch ( n 0 | x x >0 -- )
 	r> close-file drop
-	if
+	dup if
+		>r
 		2drop
-		1 throw
-	endif ;
+		r>
+	endif throw ;
 
 : ast-conn-pipe ( n a-addr -- n )
 	assert( dup ast-left @ 0<> )

@@ -8,15 +8,17 @@ require lib.fs
 
 : create-pipe ( -- a a )
 	2 cells allocate throw
-	dup libc-pipe if 
+	dup libc-pipe dup if 
+		>r
 		free drop
-		1 throw
-	endif
-	dup ['] convert-pipe-fds catch if
+		r>
+	endif throw
+	dup ['] convert-pipe-fds catch dup if
+		>r
 		drop
 		dup @ libc-close drop
 		dup @ libc-close drop
 		free drop
-		1 throw
-	endif
+		r>
+	endif throw
 	rot free drop ;

@@ -25,7 +25,9 @@ end-struct struct-array%
 	rot * + ;
 
 : struct-array-i ( u arr -- a-addr )
-	2dup struct-array-size @ u>= throw
+	2dup struct-array-size @ u>= if
+		s" Array index too big." exception throw
+	endif
 	struct-array-i-unchecked ;
 
 : struct-array-extend ( arr -- )
@@ -51,7 +53,9 @@ end-struct struct-array%
 	r@ struct-array-size @ 1- r> struct-array-size ! ;
 
 : struct-array-set ( a-addr u arr -- )
-	2dup struct-array-size @ u>= throw
+	2dup struct-array-size @ u>= if
+		s" Array index too big." exception throw
+	endif
 	tuck struct-array-i
 	swap struct-array-type 2@ %size
 	move ;
@@ -62,7 +66,9 @@ end-struct struct-array%
 	swap struct-array-set ;
 
 : struct-array-delete ( u arr -- )
-	2dup struct-array-size @ u>= throw
+	2dup struct-array-size @ u>= if
+		s" Array index too big." exception throw
+	endif
 	dup >r
 	2dup struct-array-i
 	rot 1+ dup >r
