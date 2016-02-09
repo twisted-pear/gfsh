@@ -1,4 +1,4 @@
-require lib.fs
+require help-words.fs
 
 struct
 	double% field struct-array-type

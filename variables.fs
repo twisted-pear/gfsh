@@ -1,4 +1,4 @@
-require lib.fs
+require help-words.fs
 require struct-array.fs
 
 struct

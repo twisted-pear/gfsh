@@ -74,14 +74,6 @@ end-struct heap-str%
 : heap-str-free ( a-addr -- )
 	heap-str-data @ free drop ;
 
-\ TODO: pull these into their own file
-
-: 3dup ( a b c -- a b c a b c )
-	0 2over rot drop 2over swap drop ;
-
-: 3drop ( a b c -- )
-	2drop drop ;
-
 128 constant max-prompt
 create prompt-buffer max-prompt chars allot
 
