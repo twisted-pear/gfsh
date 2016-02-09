@@ -212,6 +212,11 @@ s"  " nextname : ( c-addr u lstate -- c-addr u token1 token2... uT)
 		lex-default
 		exit
 	endif
+	rot rot 2dup 1 /string
+	lex-find-var-name swap drop 0= if
+		rot lex-default
+		exit
+	endif rot
 	lex-variable ;
 
 : = ( c-addr u lstate -- c-addr u token1 token2... uT)
