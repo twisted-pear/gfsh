@@ -69,7 +69,8 @@ require token.fs
 	assert( dup token-type @ token-type-braces-open = )
 	drop
 	dup pstate-closed @ throw
-	pstate-init ;
+	pstate-init
+	['] parser-cleanup over pstate-cleanup ! ;
 
 : parse-braces-close ( pstate token -- pstate )
 	assert( dup token-type @ token-type-braces-close = )
