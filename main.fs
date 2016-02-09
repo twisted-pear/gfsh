@@ -39,7 +39,6 @@ require parser.fs
 			endif
 			\ Free readline string.
 			r> r> free-cmdline
-			.s
 	repeat 2drop ;
 
 ' main init
