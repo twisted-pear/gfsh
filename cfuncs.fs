@@ -98,7 +98,7 @@ c-function libc-strlen strlen a -- n
 	dup >r over >r move 0 r> r> chars + c! ;
 
 : >c-string ( c-addr u -- c-addr )
-	dup char+ allocate throw >r r@ swap copy-to-c-string r> ;
+	dup 1+ chars allocate throw >r r@ swap copy-to-c-string r> ;
 
 : c-string> ( c-addr -- c-addr u )
 	dup libc-strlen ;
