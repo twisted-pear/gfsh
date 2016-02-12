@@ -175,7 +175,8 @@ variables-main variables-head !
 			var-list-next @
 			dup 0= if
 				\ not found
-				3drop 0 0
+				drop
+				getenv
 				exit
 			endif
 	repeat

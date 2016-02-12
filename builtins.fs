@@ -1,4 +1,5 @@
 require lib.fs
+require variables.fs
 
 table constant builtins
 
@@ -10,7 +11,9 @@ get-current builtins set-current
 : cd ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN -- n )
 	2drop
 	dup 0= if
-		s" HOME" getenv
+		s" HOME" ['] var-load catch if
+			2drop 0 0
+		endif
 	else
 		1- rot rot
 	endif
