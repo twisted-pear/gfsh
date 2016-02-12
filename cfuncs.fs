@@ -166,6 +166,8 @@ c-function libc-free free a -- void
 
 c-function libc-chdir chdir a -- n
 
+c-function libc-putenv putenv a -- n
+
 s" readline" add-lib
 
 \c #include <readline/readline.h>

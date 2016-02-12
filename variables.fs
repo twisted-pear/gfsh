@@ -1,4 +1,5 @@
 require help-words.fs
+require lib.fs
 require struct-array.fs
 
 struct
@@ -124,6 +125,12 @@ end-struct var-list%
 
 : var-list-put ( c-addrV uV c-addrN uN list -- )
 	assert( dup var-list-vars @ 0<> )
+	>r 2dup getenv nip 0<>
+	r@ var-list-next @ 0=
+	and if
+		\ On main var-list and env var exists.
+		2over 2over putenv
+	endif r>
 	3dup var-list-find dup 0= if
 		drop var-list-put-new
 	else
@@ -169,6 +176,7 @@ variables-main variables-head !
 	variables-head @ var-list-merge ;
 
 : var-load ( c-addr u -- c-addr u )
+	assert( dup 0<> )
 	variables-head @
 	begin
 		3dup var-list-get 0= while
@@ -183,5 +191,6 @@ variables-main variables-head !
 	\ found
 	>r >r 3drop r> r> ;
 
-: var-store ( c-addr1 u1 c-addr2 u2 -- )
+: var-store ( c-addrV uV c-addrN uN -- )
+	assert( dup 0<> )
 	variables-head @ var-list-put ;

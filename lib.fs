@@ -22,6 +22,15 @@ require cfuncs.fs
 	r> free drop
 	0<> errno> and throw ;
 
+: putenv ( c-addrV uV c-addrN uN -- )
+	2over nip over + 2 + chars allocate throw >r
+	r@ swap copy-to-c-string
+	s" =" r@ r@ libc-strlen chars + swap copy-to-c-string
+	r@ r@ libc-strlen chars + swap copy-to-c-string
+	r> libc-putenv 0<>
+	\ No free here, as putenv doesn't copy our string.
+	errno> and throw ;
+
 : n>s ( n -- c-addr u )
 	dup >r abs s>d <# #s r> sign #> ;
 
