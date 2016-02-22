@@ -149,11 +149,12 @@ end-struct ast%
 		0
 		exit
 	endif
-	var-pop var-list-free
 	1- rot rot
+	var-pop r> over >r >r
 	r@ ast-stdin @ r@ ast-stdout @ r@ ast-stderr @
 	r> ast-background @
 	run
+	r> var-list-free
 	r> str-store-free ;
 
 : ast-leaf-noop ( n a-addr -- n )

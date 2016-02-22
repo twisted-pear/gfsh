@@ -157,6 +157,14 @@ end-struct var-list%
 	swap var-list-vars @ ['] var-copy-to-list swap
 	struct-array-foreach-with-data ;
 
+: var-export ( var -- )
+	dup var-get rot var-get-name putenv ;
+
+: var-list-export ( list -- )
+	assert( dup var-list-vars @ 0<> )
+	var-list-vars @ ['] var-export swap
+	struct-array-foreach ;
+
 table 0 var-list-init constant variables-main
 
 variable variables-head

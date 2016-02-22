@@ -46,10 +46,10 @@ require builtins.fs
 	drop errno> throw ;
 
 \ This must not throw ever, catch all errors within.
-: run-program ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN f -- n )
+: run-program ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN list f -- n )
 	SIGCHLD block-signal
 	['] fork catch if
-		drop
+		2drop
 		rot 1+ consume-argv
 		SIGCHLD unblock-signal
 		errno>
@@ -58,6 +58,7 @@ require builtins.fs
 	dup 0> if
 		\ parent
 		>r >r
+		drop
 		rot 1+ consume-argv
 		r> if 
 			r> drop EXIT_SUCCESS
@@ -73,6 +74,7 @@ require builtins.fs
 			EXIT_FAILURE terminate
 		endif
 		SIGCHLD unblock-signal
+		var-list-export
 		\ The stack is not cleaned up here since we terminate the process anyway.
 		['] child-exec catch if
 			errno> strerror type-err cr-err
@@ -108,11 +110,12 @@ require builtins.fs
 	endif ;
 
 \ This must not throw ever, catch all errors within and make sure that errno remains 0.
-: run ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN a a a f -- n )
+: run ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN list a a a f -- n )
 	errno> >r 0 >errno
 	['] copy-std-fds catch if
 		drop
 		2drop drop
+		drop
 		rot 1+ consume-argv
 		errno>
 		r> >errno
@@ -121,6 +124,7 @@ require builtins.fs
 	>r
 	['] replace-std-fds catch if
 		2drop drop
+		drop
 		rot 1+ consume-argv
 		r> drop
 		r> r> r> ['] restore-std-fds catch if
@@ -130,12 +134,14 @@ require builtins.fs
 		r> >errno
 		exit
 	endif
-	2dup builtins search-wordlist if
+	>r 2dup builtins search-wordlist if
 		\ builtin
+		r> drop
 		r> swap
 		run-builtin
 	else
 		\ no builtin
+		r>
 		r>
 		run-program
 	endif
