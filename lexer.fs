@@ -10,7 +10,9 @@ struct
 end-struct lstate%
 
 table constant parse-special-regular
+table constant parse-special-'
 table constant expand-special-regular
+table constant expand-special-'
 
 : char-in-table? ( c-addr w -- f )
 	1 swap search-wordlist dup if
@@ -201,6 +203,11 @@ get-current parse-special-regular set-current
 	lex-default drop
 	r> lex-default ;
 
+: ' ( c-addr u lstate -- c-addr u token1 token2... uT )
+	dup >r
+	lex-default
+	parse-special-' r> lstate-table ! ;
+
 : skip-char? ( c -- f )
 	case
 	bl of ( -- -1 ) -1 endof
@@ -212,6 +219,24 @@ get-current parse-special-regular set-current
 
 : end ( c-addr u lstate -- c-addr u token1 token2... uT )
 	lex-end ;
+
+parse-special-' set-current
+
+: ' ( c-addr u lstate -- c-addr u token1 token2... uT )
+	dup >r
+	lex-default
+	parse-special-regular r> lstate-table ! ;
+
+: skip-char? ( c -- f )
+	case
+	( c -- 0 ) 0 swap
+	endcase ;
+
+: default ( c-addr u lstate -- c-addr u token1 token2... uT )
+	lex-default-skip ;
+
+: end ( c-addr u lstate -- c-addr u token1 token2... uT )
+	s" missing '" exception throw ;
 
 expand-special-regular set-current
 
@@ -265,6 +290,12 @@ s"  " nextname : ( c-addr u lstate -- c-addr u token1 token2... uT)
 		drop 0
 	endif ;
 
+: ' ( c-addr u lstate -- c-addr u token1 token2... uT )
+	expand-special-' swap lstate-table !
+	1- 2dup
+	over char+ rot rot move
+	0 ;
+
 : skip-char? ( c -- f )
 	case
 	( c -- 0 ) 0 swap
@@ -275,6 +306,25 @@ s"  " nextname : ( c-addr u lstate -- c-addr u token1 token2... uT)
 
 : end ( c-addr u lstate -- c-addr u token1 token2... uT)
 	lex-end ;
+
+expand-special-' set-current
+
+: ' ( c-addr u lstate -- c-addr u token1 token2... uT )
+	expand-special-regular swap lstate-table !
+	1- 2dup
+	over char+ rot rot move
+	0 ;
+
+: skip-char? ( c -- f )
+	case
+	( c -- 0 ) 0 swap
+	endcase ;
+
+: default ( c-addr u lstate -- c-addr u token1 token2... uT )
+	lex-default-skip ;
+
+: end ( c-addr u lstate -- c-addr u token1 token2... uT )
+	assert( 0 ) ;
 
 set-current
 
