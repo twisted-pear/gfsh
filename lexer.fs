@@ -6,30 +6,11 @@ struct
 	cell% field lstate-open
 	cell% field lstate-str-addr
 	cell% field lstate-str-len
+	cell% field lstate-str-trail-len
 end-struct lstate%
 
 table constant parse-special-regular
 table constant expand-special-regular
-
-: str-trim ( c-addr u xt -- c-addr u )
-	>r
-	begin
-		dup 0= if
-			r> drop
-			exit
-		endif
-		over c@ r@ execute while
-			1 /string
-	repeat
-	dup 0= if
-		r> drop
-		exit
-	endif
-	begin
-		2dup 1- chars + c@ r@ execute while
-			1-
-	repeat
-	r> drop ;
 
 : char-in-table? ( c-addr w -- f )
 	1 swap search-wordlist dup if
@@ -55,12 +36,14 @@ table constant expand-special-regular
 	s" skip-char?" rot search-wordlist
 	assert( dup 0<> ) drop ;
 
-: lex-create-token-if-str ( lstate -- token -1 | 0 )
-	dup lstate-str-addr @
-	over lstate-str-len @
-	rot lex-skip-func
-	str-trim
-	dup 0<> if
+: lex-create-token-if-str ( lstate -- token 1 | 0 )
+	>r
+	r@ lstate-str-addr @
+	r@ lstate-str-len @
+	r@ lstate-str-trail-len @
+	assert( 2dup u>= )
+	0 r> lstate-str-trail-len !
+	- dup 0<> if
 		create-str-token 1
 	else
 		2drop 0
@@ -68,13 +51,31 @@ table constant expand-special-regular
 
 : lex-begin ( c-addr u lstate -- )
 	-1 over lstate-started !
+	0 over lstate-str-trail-len !
 	tuck lstate-str-len 0 swap !
 	drop lstate-str-addr ! ;
 
 : lex-default ( c-addr u lstate -- c-addr u token1 token2... uT )
 	assert( over 0> )
+	0 over lstate-str-trail-len !
 	dup lstate-str-len @ 1+ swap lstate-str-len !
-	1- swap char+ swap 0 ;
+	1 /string 0 ;
+
+: lex-default-skip ( c-addr u lstate -- c-addr u token1 token2... uT )
+	assert( over 0> )
+	rot dup c@ >r rot rot
+	r> over lex-skip-func execute if
+		dup lstate-str-len @ 0= if
+			dup lstate-str-addr @ char+
+			swap lstate-str-addr !
+			1 /string 0
+			exit
+		else
+			dup lstate-str-trail-len @ 1+
+			over lstate-str-trail-len !
+		endif
+	endif
+	lex-default ;
 
 : lex-end ( c-addr u lstate -- c-addr u token1 token2... uT )
 	assert( over 0= )
@@ -195,7 +196,7 @@ get-current parse-special-regular set-current
 	endcase ;
 
 : default ( c-addr u lstate -- c-addr u token1 token2... uT )
-	lex-default ;
+	lex-default-skip ;
 
 : end ( c-addr u lstate -- c-addr u token1 token2... uT )
 	lex-end ;
@@ -249,7 +250,7 @@ s"  " nextname : ( c-addr u lstate -- c-addr u token1 token2... uT)
 	endcase ;
 
 : default ( c-addr u lstate -- c-addr u token1 token2... uT)
-	lex-default ;
+	lex-default-skip ;
 
 : end ( c-addr u lstate -- c-addr u token1 token2... uT)
 	lex-end ;
