@@ -56,7 +56,7 @@ table constant expand-special-regular
 	drop lstate-str-addr ! ;
 
 : lex-default ( c-addr u lstate -- c-addr u token1 token2... uT )
-	assert( over 0> )
+	assert( over 0<> )
 	0 over lstate-str-trail-len !
 	dup lstate-str-len @ 1+ swap lstate-str-len !
 	1 /string 0 ;
@@ -189,6 +189,18 @@ get-current parse-special-regular set-current
 : } ( c-addr u lstate -- c-addr u token1 token2... uT )
 	token-type-braces-close lex-conn-char ;
 
+: \ ( c-addr u lstate -- c-addr u token1 token2... uT )
+	assert( over 0<> )
+	over 1 = if
+		\ TODO: support linebreak here?
+		drop
+		1 /string 0
+		exit
+	endif
+	dup >r
+	lex-default drop
+	r> lex-default ;
+
 : skip-char? ( c -- f )
 	case
 	bl of ( -- -1 ) -1 endof
@@ -243,6 +255,15 @@ s"  " nextname : ( c-addr u lstate -- c-addr u token1 token2... uT)
 	1 /string 2dup r@ lex-begin
 	-1 r> lstate-open !
 	r> 1 ;
+
+: \ ( c-addr u lstate -- c-addr u token1 token2... uT )
+	swap 1- tuck 0<> if
+		>r 2dup
+		over char+ rot rot move
+		r> lex-default
+	else
+		drop 0
+	endif ;
 
 : skip-char? ( c -- f )
 	case
