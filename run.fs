@@ -88,7 +88,7 @@ require builtins.fs
 	endif ;
 
 \ This must not throw ever, catch all errors within.
-: run-builtin ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN f xt -- n )
+: run-builtin ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN list f xt -- n )
 	swap if
 		\ run in bg
 		['] fork catch if
@@ -101,7 +101,7 @@ require builtins.fs
 			EXIT_SUCCESS
 		endif
 		>r
-		drop
+		2drop
 		rot 1+ consume-argv
 		r>
 	else
@@ -136,8 +136,8 @@ require builtins.fs
 	endif
 	>r 2dup builtins search-wordlist if
 		\ builtin
-		r> drop
-		r> swap
+		r>
+		r> rot
 		run-builtin
 	else
 		\ no builtin

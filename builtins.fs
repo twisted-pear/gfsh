@@ -5,10 +5,11 @@ table constant builtins
 
 get-current builtins set-current
 
-: exit ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN -- n )
+: exit ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN list -- n )
 	0 terminate ;
 
-: cd ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN -- n )
+: cd ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN list -- n )
+	drop
 	2drop
 	dup 0= if
 		s" HOME" ['] var-load catch if
