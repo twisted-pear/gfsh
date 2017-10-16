@@ -86,6 +86,12 @@ c-function default-signal default_signal n -- n
 2 constant SIGINT
 17 constant SIGCHLD
 
+\c char** get_environ() { return environ; }
+\c void set_environ(char **env) { environ = env; }
+
+c-function libc-environ> get_environ -- a
+c-function >libc-environ set_environ a -- void
+
 c-function libc-execvp execvp a a -- n
 
 c-function libc-fork fork -- n
@@ -102,6 +108,13 @@ c-function libc-strlen strlen a -- n
 
 : c-string> ( c-addr -- c-addr u )
 	dup libc-strlen ;
+
+: make-env-c-string ( c-addrV uV c-addrN uN -- c-addr )
+	2over nip over + 2 + chars allocate throw >r
+	r@ swap copy-to-c-string
+	s" =" r@ r@ libc-strlen chars + swap copy-to-c-string
+	r@ r@ libc-strlen chars + swap copy-to-c-string
+	r> ;
 
 c-function libc-dup dup n -- n
 

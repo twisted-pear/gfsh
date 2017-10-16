@@ -10,7 +10,7 @@ require cfuncs.fs
 : >errno ( n -- )
 	>libc-errno ;
 
-: errno> ( n -- )
+: errno> ( -- n )
 	libc-errno> ;
 
 : fork ( -- )
@@ -22,12 +22,14 @@ require cfuncs.fs
 	r> free drop
 	0<> errno> and throw ;
 
+: environ> ( a -- )
+	libc-environ> ;
+
+: >environ ( -- a )
+	>libc-environ ;
+
 : putenv ( c-addrV uV c-addrN uN -- )
-	2over nip over + 2 + chars allocate throw >r
-	r@ swap copy-to-c-string
-	s" =" r@ r@ libc-strlen chars + swap copy-to-c-string
-	r@ r@ libc-strlen chars + swap copy-to-c-string
-	r> libc-putenv 0<>
+	make-env-c-string libc-putenv 0<>
 	\ No free here, as putenv doesn't copy our string.
 	errno> and throw ;
 
