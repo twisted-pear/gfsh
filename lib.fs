@@ -29,9 +29,12 @@ require cfuncs.fs
 	>libc-environ ;
 
 : putenv ( c-addrV uV c-addrN uN -- )
-	make-env-c-string libc-putenv 0<>
+	>env-c-string dup libc-putenv 0<> if
+		free drop
+		errno> throw
+	endif
 	\ No free here, as putenv doesn't copy our string.
-	errno> and throw ;
+	drop ;
 
 : n>s ( n -- c-addr u )
 	dup >r abs s>d <# #s r> sign #> ;
