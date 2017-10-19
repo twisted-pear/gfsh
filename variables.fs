@@ -1,3 +1,4 @@
+require cstrarrays.fs
 require help-words.fs
 require lib.fs
 require struct-array.fs
@@ -36,6 +37,17 @@ end-struct var%
 
 : var-get ( var -- c-addrV uV )
 	dup var-value-data @ swap var-value-size @ ;
+
+: var-str-deepcopy ( c-addrV uV c-addrN uN -- c-addrV2 uV2 c-addrN2 uN2 )
+	dup chars allocate throw
+	swap 2dup >r >r
+	move
+	dup chars allocate dup if
+		r> r> drop free drop
+	endif throw
+	swap 2dup >r >r
+	move
+	r> r> r> r> ;
 
 struct
 	cell% field var-list-next
@@ -125,12 +137,6 @@ end-struct var-list%
 
 : var-list-put ( c-addrV uV c-addrN uN list -- )
 	assert( dup var-list-vars @ 0<> )
-	>r 2dup getenv nip 0<>
-	r@ var-list-next @ 0=
-	and if
-		\ On main var-list and env var exists.
-		2over 2over putenv
-	endif r>
 	3dup var-list-find dup 0= if
 		drop var-list-put-new
 	else
@@ -149,7 +155,14 @@ end-struct var-list%
 	swap >r
 	dup var-get
 	rot var-get-name
-	r> var-list-put ;
+	var-str-deepcopy
+	2over 2over drop nip
+	r> rot rot >r >r
+	['] var-list-put catch dup if
+		r> free drop
+		r> free drop
+	endif throw
+	r> r> 2drop ;
 
 : var-list-merge ( listS listD -- )
 	assert( dup var-list-vars @ 0<> )
@@ -165,6 +178,55 @@ end-struct var-list%
 	var-list-vars @ ['] var-export swap
 	struct-array-foreach ;
 
+: var-store-envp ( a-addr var -- )
+	\ get variable contents and store as C string
+	dup var-get rot var-get-name >env-c-string ( a-addr c-addr -- )
+	\ save address of C string in array
+	over @ tuck ! ( a-addr a-addr -- )
+	\ increase array index and store
+	cell+ swap ! ;
+
+: var-list-to-envp ( list -- a-addr )
+	var-list-vars @ dup struct-array-size @ ( arr u -- )
+	alloc-argv dup >r ( arr aN; r: aN -- )
+	swap >r sp@ ['] var-store-envp r> ( aN a-aN xt arr; r: aN -- )
+	['] struct-array-foreach-with-data catch dup if
+		r> free-argv
+	endif throw ( aNn; r: aN -- )
+	drop r> ;
+
+: envp-to-var-list ( a-addr -- list )
+	0 0 var-list-init >r
+	begin
+		dup @ dup while
+			['] env-c-string> catch dup if
+				r> var-list-free
+			endif throw
+			['] var-str-deepcopy catch dup if
+				r> var-list-free
+			endif throw ( a-addr c-addrV uV c-addrN uN; r: list -- )
+			2over 2over drop nip
+			r@ rot rot >r >r ( a-addr c-addrV uV c-addrN uN list;
+						r: list c-addrN c-addrV -- )
+			['] var-list-put catch dup if
+				r> free drop
+				r> free drop
+				r> var-list-free
+			endif throw
+			r> r> 2drop
+			cell+
+	repeat 2drop r> ;
+
+: var-list-make-envp ( list -- a-addr )
+	environ> envp-to-var-list dup >r
+	['] var-list-merge catch dup if
+		r> var-list-free
+	endif throw
+	r@ ['] var-list-to-envp catch
+	r> var-list-free
+	throw ;
+
+\ if you free this and stored env vars the environ array will be fucked
 table 0 var-list-init constant variables-main
 
 variable variables-head
@@ -179,9 +241,6 @@ variables-main variables-head !
 	assert( dup 0<> )
 	variables-head @
 	swap variables-head ! ;
-
-: var-collapse ( list -- )
-	variables-head @ var-list-merge ;
 
 : var-load ( c-addr u -- c-addr u )
 	assert( dup 0<> )
@@ -201,4 +260,42 @@ variables-main variables-head !
 
 : var-store ( c-addrV uV c-addrN uN -- )
 	assert( dup 0<> )
-	variables-head @ var-list-put ;
+	assert( variables-main 0<> )
+	assert( variables-head @ 0<> )
+	0 >r
+	variables-head @ variables-main = if
+		2dup getenv over 0<> if
+			r> drop
+			2over >r >r
+			>r >r -1 >r
+			2over 2over putenv
+		else
+			2drop
+		endif
+	endif
+
+	variables-head @ ['] var-list-put catch dup if
+		r> if
+			r> r> r> r> ['] putenv catch drop
+		endif
+	else
+		r> if r> r> r> r> 2drop 2drop endif
+	endif throw ;
+
+: var-store-var ( var -- )
+	dup var-get
+	rot var-get-name
+	var-str-deepcopy
+	2over 2over drop nip >r >r
+	['] var-store catch dup if
+		r> free drop
+		r> free drop
+	endif throw
+	r> r> 2drop ;
+
+: var-collapse ( list -- )
+	variables-head @ dup variables-main = if
+		drop ['] var-store-var swap var-list-vars @
+		struct-array-foreach
+		exit
+	endif var-list-merge ;

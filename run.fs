@@ -1,15 +1,8 @@
-require cfuncs.fs
+require builtins.fs
 require cstrarrays.fs
+require exec-helpers.fs
 require fd.fs
 require lib.fs
-require builtins.fs
-
-: child-exec ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN -- n )
-	rot 1+
-	init-argv
-	dup dup @ swap libc-execvp swap
-	free-argv
-	drop errno> throw ;
 
 \ This must not throw ever, catch all errors within.
 : run-program ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN list f -- n )
@@ -40,9 +33,8 @@ require builtins.fs
 			EXIT_FAILURE terminate
 		endif
 		SIGCHLD unblock-signal
-		var-list-export
 		\ The stack is not cleaned up here since we terminate the process anyway.
-		['] child-exec catch if
+		['] stack-args-exec catch if
 			errno> strerror type-err cr-err
 			errno> ENOENT = if
 				EXIT_NOENT

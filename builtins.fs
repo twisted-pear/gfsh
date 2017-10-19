@@ -1,3 +1,4 @@
+require exec-helpers.fs
 require lib.fs
 require variables.fs
 
@@ -34,5 +35,21 @@ get-current builtins set-current
 	else
 		EXIT_SUCCESS
 	endif ;
+
+: exec ( c-addr1 u1 c-addr2 u2 ... u c-addrN uN list -- n )
+	>r 2drop
+	dup 0= if
+		r> 2drop
+		EXIT_SUCCESS
+		exit
+	endif dup >r
+	1- rot rot
+	r> r> swap >r
+	['] stack-args-exec catch 0= if
+		\ if exec fails stack-args-exec should always throw
+		assert( 0 )
+	endif
+	r> 1+ 2* cleanup-stack
+	EXIT_FAILURE ;
 
 set-current

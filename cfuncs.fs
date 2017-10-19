@@ -109,12 +109,21 @@ c-function libc-strlen strlen a -- n
 : c-string> ( c-addr -- c-addr u )
 	dup libc-strlen ;
 
-: make-env-c-string ( c-addrV uV c-addrN uN -- c-addr )
+: >env-c-string ( c-addrV uV c-addrN uN -- c-addr )
 	2over nip over + 2 + chars allocate throw >r
 	r@ swap copy-to-c-string
 	s" =" r@ r@ libc-strlen chars + swap copy-to-c-string
 	r@ r@ libc-strlen chars + swap copy-to-c-string
 	r> ;
+
+: env-c-string> ( c-addr -- c-addrV uV c-addrN uN )
+	dup libc-strlen
+	2dup s" =" search 0= if
+		s" Invalid environment string" exception throw
+	endif
+	rot over -
+	rot char+ rot 1-
+	2swap ;
 
 c-function libc-dup dup n -- n
 

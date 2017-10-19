@@ -36,6 +36,12 @@ require cfuncs.fs
 	\ No free here, as putenv doesn't copy our string.
 	drop ;
 
+: exec ( a-argv a-envp -- )
+	environ> >r >environ
+	dup @ swap libc-execvp drop
+	r> >environ
+	errno> throw ;
+
 : n>s ( n -- c-addr u )
 	dup >r abs s>d <# #s r> sign #> ;
 
